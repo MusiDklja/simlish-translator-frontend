@@ -32,7 +32,7 @@
   .row{display:grid;gap:12px;grid-template-columns:1fr 1fr}
   .btn{cursor:pointer;transition:filter .15s ease, transform .05s ease;background:linear-gradient(180deg,var(--accent) 0%, var(--accent-strong) 100%);color:#052018;font-weight:800;border:none}
   .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(1px)}
-  .btn.sec{background:#071b20;border:1px solid var(--line);color:#ink;font-weight:600}
+  .btn.sec{background:#071b20;border:1px solid var(--line);color:#fff;font-weight:600}
   .out{white-space:pre-wrap;min-height:170px;border-radius:12px;border:1px dashed var(--line);padding:10px;background:#06141a;word-break:break-word;overflow-wrap:anywhere}
   .muted{color:var(--muted);font-size:.92rem}
   .small{font-size:.85rem}
@@ -49,7 +49,7 @@
   .secret{max-width:1100px;margin:0 auto;padding:0 24px 12px}
   .list{display:grid;gap:8px;margin-top:8px}
   .item{display:grid;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#06181e}
-  .item .row2{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}
+  .item .row2{display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px}
   .item small{color:var(--muted)}
   .chips{display:flex;gap:8px;flex-wrap:wrap}
   .chipOpt{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#071b20;padding:6px 10px;border-radius:999px}
@@ -74,7 +74,8 @@
         </div>
         <p class="muted small">Aprendizaje estricto: sincroniza y guarda automáticamente en el backend oficial.</p>
         <div class="toolbar">
-          <button id="exportBtn" class="btn sec" title="Exportar vocab de usuario">Exportar vocab</button>
+          <button id="exportVocab" class="btn sec" title="Exportar mapeo de usuario (solo diccionario)">Exportar vocab</button>
+          <button id="exportBackup" class="btn sec" title="Exportar respaldo completo (.json)">Exportar respaldo (.json)</button>
         </div>
         <div id="strictBanner" class="small muted" style="display:none"></div>
       </div>
@@ -143,14 +144,6 @@
           <button id="btnCreate" class="btn">Guardar</button>
           <span class="small muted"></span>
         </div>
-
-        <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
-
-        <!-- Conflictos activos -->
-        <details open>
-          <summary><strong>Conflictos activos</strong></summary>
-          <div id="confList" class="small muted" style="margin-top:8px">--</div>
-        </details>
       </div>
     </div>
     <!-- ===== /Panel secreto ===== -->
@@ -177,12 +170,24 @@ let lastLearnedCount = 0;
 const BACKEND_URL = "https://simlish-translator-backend.onrender.com/";
 let pushTimer = null, pulling = false, lastPushOk = null, dirtySinceLastPush = false;
 
-/* Admin password (hash SHA-256) */
-const ADMIN_HASH_HEX = "7f62619786ad59b250343204be7eba3b6adf943139684e185ab7234e8dc7d774"; // no se expone la clave en claro
-
 const deacc = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const normEs = s => deacc(String(s||"").toLowerCase()).trim();
 const normSim = s => String(s||"").toLowerCase().trim();
+const splitEsVariants = es => Array.from(new Set(String(es||"").toLowerCase()
+  .replaceAll("(", " ").replaceAll(")", " ")
+  .split(/[\/,]|\/|\s+\/\s+/g)
+  .map(x=>deacc(x).trim())
+  .filter(Boolean)));
+
+/* Password (solo hash, tu clave no está en claro) */
+const PASS_HASH_HEX = "7f62619786ad59b250343204be7eba3b6adf943139684e185ab7234e8dc7d774"; // SHA-256
+
+async function sha256Hex(str){
+  const enc = new TextEncoder();
+  const buf = await crypto.subtle.digest("SHA-256", enc.encode(str));
+  const bytes = Array.from(new Uint8Array(buf));
+  return bytes.map(b=>b.toString(16).padStart(2,"0")).join("");
+}
 
 function defaultUserStore(){ return { es2sim:{}, sim2es:{} }; }
 function loadUser(){ try{ return JSON.parse(localStorage.getItem(KEY_USER)||"") || defaultUserStore(); } catch{ return defaultUserStore(); } }
@@ -217,14 +222,22 @@ const DATA = {
   "calendario":{ "dias":["Lurnas","Tarnas","Mernas","Juvnas","Virnas","Sabnas","Domnas"], "meses":["Enmar","Febmar","Tramar","Avramar","Majmar","Junmar","Julmar","Gostmar","Septmar","Oktmar","Novmar","Zimbar"] },
   "vocabulario": {
     "pronombres":{"meeba":"yo","teeba":"tú","heeba":"él","sheba":"ella","weeba":"nosotros","da":"el/la/los/las"},
-    "basicos":{"yibu":"sí","nah":"no","nuvva":"nunca","su laa":"hola/bienvenidos","da vaa":"adiós","felnu":"perdón","firvu":"bien hecho","whazzu":"¿qué pasa?","frezzu":"felicidades","vrashoo":"ojalá","welbru":"bienvenido","oddru":"otro","gratvu":"gracias","prezooba":"bonito/hermoso","nibbu":"bebé"},
+    "basicos":{
+      "sul sul":"hola",
+      "su laa":"bienvenidos",
+      "dag dag":"chao",
+      "da vaa":"adiós",
+      "yibu":"sí","nah":"no","nuvva":"nunca",
+      "felnu":"perdón","firvu":"bien hecho","whazzu":"¿qué pasa?","frezzu":"felicidades","vrashoo":"ojalá","welbru":"bienvenido",
+      "oddru":"otro","gratvu":"gracias","prezooba":"bonito/hermoso","nibbu":"bebé"
+    },
     "lugares":{"varkun":"mercado","savrak":"escuela","tavruu":"taberna","domru":"templo","karshu":"cárcel","frambu":"granja","talvak":"taller","citra":"pueblo","shorva-midru":"plaza central"},
     "casa":{"grivna":"pared","tavnek":"techo","grundal":"suelo","ventra":"ventana","dorvu":"puerta","skravla":"escalera","plavru":"patio","fumrak":"chimenea","slumbaa":"cama","trabka":"mesa","krinta":"silla","garvun":"armario","lumbru":"sofá","sholvik":"estante","glimra":"lámpara"},
     "naturaleza":{"dravun":"árbol","lurvak":"bosque","rivru":"río","lagru":"lago","morvak":"mar","mornak":"montaña","vallru":"valle","plavna":"pradera","skavru":"cielo","nubba":"nube","sulvar":"sol","lunvar":"luna","strovna":"estrella","wairnu":"viento","grunva":"tierra"},
     "clima":{"shusha":"lluvia","bravruu":"tormenta","drovak":"trueno","skrashu":"rayo/relámpago","flavru":"nieve","kravnu":"granizo","hetru":"calor","friznu":"frío","grovna":"nube oscura","prismoo":"arcoíris"},
     "cocina":{"fooba":"comida","shubra":"ropa","lavru":"lavar","olbru":"olla","frilpa":"sartén","klivra":"cuchillo","spuvu":"cuchara","platru":"plato","glavru":"vaso","ovrak":"horno","stovru":"fuego de cocina"},
     "verbos_cotidianos":{"brazu":"cocinar","nomma":"comer","gluppa":"beber","delvu":"servir","klasha":"cortar","mashka":"masticar","travnu":"ir/ir a","gavna":"tener","dropra":"dejar caer","workru":"trabajar","zurnu":"ganas/ánimo","showru":"aparecer/mostrar(se)"},
-    "sabores_estado":{"tastu":"sabrosa","brasha":"caliente","swibbu":"dulce","salgru":"salada","bitra":"amarga","sharvu":"picante","tartu":"ácida","fluska":"limpio"},
+    "sabores_estado":{"tastu":"sabrosa","friznu":"fría","brasha":"caliente","swibbu":"dulce","salgru":"salada","bitra":"amarga","sharvu":"picante","tartu":"ácida","fluska":"limpio"},
     "cuerpo":{"kavra":"cabeza","manru":"mano","okru":"ojo","mokra":"boca","legra":"pierna","podru":"pie","krovna":"corazón","bonka":"hueso","skarna":"piel"},
     "organos":{"bravna":"cerebro","stomru":"estómago","lungra":"pulmones","livru":"hígado","kidru":"riñón","krovak":"sangre","alvra":"alma","introv":"intestino","zanvak":"eterno"},
     "sentidos":{"vooba":"ver","lurmu":"oír","snorva":"oler","gustra":"saborear","takru":"tocar","senvra":"sentir","perklu":"percibir"},
@@ -234,11 +247,13 @@ const DATA = {
     "animales":{"mivvu":"gato","woofum":"perro","chirva":"ave/pájaro","bluppa":"pez","tranka":"caballo","bovru":"vaca","skivvi":"ratón","vulka":"zorro","snorka":"cerdo","balmu":"oveja"},
     "tecnologia_epico":{"netvra":"internet","stabru":"estable","zavrush":"aventuras"},
     "narrativa_raices":{"zombru":"guiar/liderar (épico)","gravnu":"aldea/ciudad grande","flowru":"flujo espiritual/energía","shobru":"mostrar/revelar"},
-    /* custom: tus fijaciones clave */
-    "custom":{"plarvoh":"mañana","nurplah":"juguemos","frizna":"fría"}
+    "custom":{"plarvoh":"mañana","nurplah":"juguemos"}
   },
   "phrasebook":{
-    "saludos":{"Su laa!":"¡Hola!","Kujan teeba shoba?":"¿Cómo estás?","Welbru ta oddru Mernas ta Simms, miau.":"Bienvenidos a otro Miércoles de Sims, miau.","Mernas ta Simms zavrush, miau.":"Miércoles de Sims aventuras, miau."},
+    "saludos":{
+      "Sul sul!":"¡Hola!",
+      "Su laa!":"¡Bienvenidos!"
+    },
     "cotidianas":{"Meeba gavna ta travnu ta lavru shubra, plubbu meeba gavna nuvva zurnu.":"Tengo que ir a lavar ropa y no tengo ganas.","Meeba brazu supa brasha.":"Cocino sopa caliente.","Delvu da supa wit spuvu.":"Sirve la sopa con la cuchara.","Meeba gluppa tivra brasha.":"Bebo té caliente."},
     "vivo_humor_picante":{"Chobba entru":"Chúpalo entonces","Meeba travnu dropra da shusha":"Voy a dejar caer la lluvia","Zemma fruuvy":"Semencito rico","Klavash":"Culear","Zorva":"Zorra","Plumba fruuvy":"Pene rico","Zabbo palu da vooba":"Pico pal que lee"},
     "tiernas":{"Puzzaa, meeba wrongru.":"Pucha, me equivoqué.","Aiaiyu, da hurtru brumba.":"Ayayay, qué dolor grande.","Nyeee, meeba nah sulah.":"Ñeee, no quiero.","Shishi, da funnu.":"Jijiji, qué chistoso."},
@@ -254,9 +269,9 @@ let CORE_ES2SIM=new Map(), CORE_SIM2ES=new Map(), PH_ES2SIM=new Map(), PH_SIM2ES
   for(const entries of Object.values(DATA.vocabulario)){
     for(const [sim, es] of Object.entries(entries)){
       const espNorm = normEs(es), simNorm = normSim(sim);
-      const variants = espNorm.split(/[\/ ,]/).map(s=>s.trim()).filter(Boolean);
+      const variants = splitEsVariants(espNorm);
       for(const v of variants){ if(!CORE_ES2SIM.has(v)) CORE_ES2SIM.set(v, sim); }
-      if(!CORE_SIM2ES.has(simNorm)) CORE_SIM2ES.set(simNorm, es.split('/')[0]); // toma la 1ra si hay "hola/bienvenidos"
+      if(!CORE_SIM2ES.has(simNorm)) CORE_SIM2ES.set(simNorm, variants[0]||es.split('/')[0]);
     }
   }
   for(const group of Object.values(DATA.phrasebook||{})){
@@ -267,7 +282,7 @@ let CORE_ES2SIM=new Map(), CORE_SIM2ES=new Map(), PH_ES2SIM=new Map(), PH_SIM2ES
   }
 })();
 
-/* ===================== MULTI-PALABRAS SIMLISH (p.ej. "su laa") ===================== */
+/* ===================== MULTI-PALABRAS SIMLISH ===================== */
 function getMultiSimKeys(){
   const keys = new Set();
   for (const entries of Object.values(DATA.vocabulario||{})){
@@ -278,6 +293,10 @@ function getMultiSimKeys(){
   for (const sim of Object.keys((USER&&USER.sim2es)||{})){
     if (sim && sim.includes(" ")) keys.add(sim.toLowerCase());
   }
+  // Frases del phrasebook también:
+  for (const sim of PH_SIM2ES.keys()){
+    if (sim.includes(" ")) keys.add(sim.toLowerCase());
+  }
   return Array.from(keys).sort((a,b)=> b.length - a.length);
 }
 function compressMultiSim(text){
@@ -286,71 +305,52 @@ function compressMultiSim(text){
   for (const key of keys){
     const escaped = key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
     const re = new RegExp(`\\b${escaped}\\b`, "gi");
-    out = out.replace(re, (m)=> m.replace(/\s+/g, "_")); // "su laa" -> "su_laa"
+    out = out.replace(re, (m)=> m.replace(/\s+/g, "_"));
   }
   return out;
 }
 function expandMultiSimToken(token){ return token.replace(/_/g, " "); }
 
 /* ===================== Utilidades varias ===================== */
-function currentSimOwner(sim){ const k=normSim(sim); if(USER.sim2es[k]) return {scope:"USER", es:USER.sim2es[k]}; if(CORE_SIM2ES.has(k)) return {scope:"CORE", es:CORE_SIM2ES.get(k)}; return null; }
+function currentSimOwner(sim){
+  const k=normSim(sim);
+  if(USER.sim2es[k]) return {scope:"USER", es:USER.sim2es[k]};
+  if(CORE_SIM2ES.has(k)) return {scope:"CORE", es:CORE_SIM2ES.get(k)};
+  return null;
+}
 function preserveCase(o,r){ return /^[A-Z]/.test(o) ? r.charAt(0).toUpperCase()+r.slice(1) : r; }
 function ensureUniqueSim(sim, es){
   let base=normSim(sim); const owner=currentSimOwner(base);
-  if(!owner || normEs(owner.es)===normEs(es)) return sim;
+  if(!owner || splitEsVariants(owner.es).includes(normEs(es))) return sim;
   const suff=["ah","eh","oh","nu","ru","va","la","ra","ba"];
   for(const s of suff){ const cand=base+s; if(!currentSimOwner(cand)) return preserveCase(sim,cand); }
   let i=2; while(currentSimOwner(base+i)) i++; return preserveCase(sim, base+i);
 }
 
-/* ===================== Detector de conflictos (ignora género o/a) ===================== */
+/* === Conflictos que ignoran sinónimos === */
 function scanConflicts(){
-  const seen = new Map();   // sim -> Set<es_norm>
-  const rawMap = new Map(); // sim -> Set<es_raw>
-
-  const addPair = (esRaw, simRaw) => {
-    const s = normSim(simRaw), eNorm = normEs(esRaw), eRaw = String(esRaw||"").trim();
-    if(!s || !eNorm) return;
-    if(!seen.has(s)) { seen.set(s, new Set()); rawMap.set(s, new Set()); }
-    seen.get(s).add(eNorm);
-    rawMap.get(s).add(eRaw);
-  };
-
-  // CORE (soporta "a/b" y "a, b")
-  for(const entries of Object.values(DATA.vocabulario||{})){
-    for(const [sim, esRaw] of Object.entries(entries||{})){
-      const variants = String(esRaw||"").split(/[\/,]/).map(v=>v.trim()).filter(Boolean);
-      (variants.length ? variants : [esRaw]).forEach(v => addPair(v, sim));
+  const seen=new Map(), conflicts=[];
+  function addPair(es, sim){
+    const s=normSim(sim), variants=splitEsVariants(es);
+    if(!seen.has(s)){ seen.set(s, new Set(variants)); return; }
+    const prev=seen.get(s);
+    const inter = variants.some(v=>prev.has(v));
+    if(!inter){
+      // no comparten ningún sinónimo → conflicto real
+      conflicts.push({sim:s, known:[...prev].join(" / "), new:variants.join(" / ")});
+      // también une para evitar duplicar el mismo conflicto con más entradas
+      variants.forEach(v=>prev.add(v));
+    }else{
+      // hay solapamiento → no es conflicto
+      variants.forEach(v=>prev.add(v));
     }
+  }
+  // CORE
+  for(const entries of Object.values(DATA.vocabulario)){
+    for(const [sim, es] of Object.entries(entries)) addPair(es, sim);
   }
   // USER
-  for(const [es, sim] of Object.entries((USER&&USER.es2sim)||{})){
-    addPair(es, sim);
-  }
-
-  const isGenderVariant = (a, b) => {
-    if(a === b) return true;
-    if(a.length !== b.length) return false;
-    if(a.slice(0,-1) !== b.slice(0,-1)) return false;
-    const lastA = a.slice(-1), lastB = b.slice(-1);
-    return (lastA==='o' && lastB==='a') || (lastA==='a' && lastB==='o');
-  };
-
-  const conflicts = [];
-  for(const [sim, setNorm] of seen.entries()){
-    if(setNorm.size <= 1) continue;
-    const vals = Array.from(setNorm);
-    let allGender = true;
-    for(let i=0;i<vals.length && allGender;i++){
-      for(let j=i+1;j<vals.length && allGender;j++){
-        if(!isGenderVariant(vals[i], vals[j])) allGender = false;
-      }
-    }
-    if(allGender) continue; // sólo difiere por género → no es conflicto
-
-    const rawList = Array.from(rawMap.get(sim)||[]);
-    conflicts.push({ sim, variants: rawList });
-  }
+  for(const [es, sim] of Object.entries(USER.es2sim||{})) addPair(es, sim);
   return conflicts;
 }
 
@@ -441,7 +441,7 @@ function translateSIM2ES(text){
 
     for(const t0 of toks){
       if(/^[.,;:!?]$/.test(t0)){ esToks.push(t0); continue; }
-      const t = expandMultiSimToken(t0);           // "su_laa" -> "su laa"
+      const t = expandMultiSimToken(t0);
       const key = normSim(t);
 
       let es = USER.sim2es[key] || CORE_SIM2ES.get(key);
@@ -467,27 +467,15 @@ const $copy=document.getElementById("copy"), $demo=document.getElementById("demo
 const $toggleDir=document.getElementById("toggleDir"), $dirLabel=document.getElementById("dirLabel");
 const $stateDirVal=document.getElementById("stateDirVal"), $stateLearnVal=document.getElementById("stateLearnVal");
 const $meta=document.getElementById("meta"), $metaLex=document.getElementById("metaLex");
-const $exportBtn=document.getElementById("exportBtn"), $history=document.getElementById("history");
+const $exportVocab=document.getElementById("exportVocab"), $exportBackup=document.getElementById("exportBackup");
+const $history=document.getElementById("history");
 const $confBadge=document.getElementById("confBadge"), $confCount=document.getElementById("confCount");
 const $hostChip=document.getElementById("hostChip"), $hostState=document.getElementById("hostState");
 const $strictBanner=document.getElementById("strictBanner");
-const $confList=document.getElementById("confList");
 
 /* ===================== UI helpers ===================== */
 function setDir(d){ CURRENT_DIR=d; const lbl=d===DIR.ES2SIM?"ES → SIM":"SIM → ES"; $dirLabel.textContent=lbl; if($stateDirVal) $stateDirVal.textContent=lbl.replace(" ",""); }
 $toggleDir.addEventListener("click", ()=> setDir(CURRENT_DIR===DIR.ES2SIM?DIR.SIM2ES:DIR.ES2SIM));
-
-function renderConflicts(){
-  const confs=scanConflicts();
-  if($confCount) $confCount.textContent=String(confs.length);
-  if($confBadge){ $confBadge.classList.toggle("warn", confs.length>0); $confBadge.classList.toggle("ok", confs.length===0); }
-  if($confList){
-    if(!confs.length){ $confList.textContent="--"; }
-    else{
-      $confList.innerHTML = confs.map(c=>`• <b>${c.sim}</b> ↔ <i>${(c.variants||[]).join(" / ")}</i>`).join("<br>");
-    }
-  }
-}
 
 function refreshMeta(){
   const cats=Object.keys(DATA.vocabulario||{}); let totalCore=0; for(const c of cats) totalCore+=Object.keys(DATA.vocabulario[c]).length;
@@ -506,9 +494,11 @@ function refreshMeta(){
     }
   }
 
-  renderConflicts();
+  const confs=scanConflicts(); if($confCount) $confCount.textContent=String(confs.length);
+  if($confBadge){ $confBadge.classList.toggle("warn", confs.length>0); $confBadge.classList.toggle("ok", confs.length===0); }
 
   if($strictBanner){ $strictBanner.style.display="none"; }
+
   updateHostIndicators();
 }
 
@@ -517,23 +507,49 @@ $btn.addEventListener("click", doTranslate);
 $clear.addEventListener("click", ()=>{ $in.value=""; $out.textContent="--"; lastLearnedCount=0; refreshMeta(); });
 $copy.addEventListener("click", async ()=>{ const txt=$out.textContent.trim(); if(!txt||txt==="--"){ alert("No hay texto para copiar."); return; } try{ await navigator.clipboard.writeText(txt); $copy.textContent="¡Copiado!"; setTimeout(()=>{$copy.textContent="Copiar";},900); }
 catch{ const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); $copy.textContent="¡Copiado!"; } finally{ document.body.removeChild(ta); setTimeout(()=>{$copy.textContent="Copiar";},900); } } });
-$demo.addEventListener("click", ()=>{ if(CURRENT_DIR===DIR.ES2SIM){ $in.value="Ayer cociné sopa caliente, hoy la estoy sirviendo y mañana la voy a compartir."; } else { $in.value="Su laa, meeba shoba dra-brazu supa brasha. Delvu da supa wit spuvu."; } doTranslate(); });
-$exportBtn.addEventListener("click", ()=>{ const data=localStorage.getItem(KEY_USER) || "{}"; const blob=new Blob([data], {type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`simlish-vocab-user-v${CORE_VERSION}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); });
+$demo.addEventListener("click", ()=>{ if(CURRENT_DIR===DIR.ES2SIM){ $in.value="Ayer cociné sopa caliente, hoy la estoy sirviendo y mañana la voy a compartir."; } else { $in.value="Sul sul! Su laa! Dag dag, da vaa."; } doTranslate(); });
 
-/* ===================== SECRET UNLOCK (hash, no clave en claro) ===================== */
-async function sha256Hex(str){
-  const enc = new TextEncoder().encode(str);
-  const buf = await crypto.subtle.digest("SHA-256", enc);
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
-}
+/* Exportadores */
+$exportVocab.addEventListener("click", ()=>{
+  const data = localStorage.getItem(KEY_USER) || "{}";
+  const blob = new Blob([data], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `simlish-vocab-user-v${CORE_VERSION}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+});
+$exportBackup.addEventListener("click", ()=>{
+  const backup = {
+    core_version: CORE_VERSION,
+    exported_at: new Date().toISOString(),
+    user: USER,
+    history: HISTORY
+  };
+  const blob = new Blob([JSON.stringify(backup,null,2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `simlish-backup-v${CORE_VERSION}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+});
+
+/* ===================== SECRET UNLOCK (hash) ===================== */
 document.getElementById("secretUnlock")?.addEventListener("click", async ()=>{
   const pass = (document.getElementById("secretPass")?.value||"").trim();
-  const hex = await sha256Hex(pass);
-  if(hex===ADMIN_HASH_HEX){
-    const panel=document.getElementById("secretPanel");
-    if(panel){ panel.style.display="block"; }
-    const fld=document.getElementById("secretPass"); if(fld) fld.value="";
-  }else{ alert("Contraseña incorrecta."); }
+  if(!pass){ alert("Ingresa la contraseña."); return; }
+  try{
+    const hex = await sha256Hex(pass);
+    if(hex === PASS_HASH_HEX){
+      const panel=document.getElementById("secretPanel");
+      if(panel){ panel.style.display="block"; }
+      const fld=document.getElementById("secretPass"); if(fld) fld.value="";
+    }else{
+      alert("Contraseña incorrecta.");
+    }
+  }catch(e){
+    alert("Tu navegador no soporta WebCrypto. Usa un navegador actualizado.");
+  }
 });
 
 /* ===================== EDITOR ===================== */
@@ -564,8 +580,9 @@ function renderResults(list){
         <input id="${esId}" value="${item.es}" ${isCore?'disabled':''} title="${isCore?'CORE (solo lectura)':'Español'}"/>
         <input id="${simId}" value="${item.sim}" ${locked?'disabled':''} title="${locked?'Bloqueado':'Simlish'}"/>
         <button class="btn" ${locked?'disabled':''} data-action="save">Guardar</button>
+        <button class="btn sec" ${locked?'disabled':''} data-action="delete">Eliminar</button>
       </div>
-      <small>${isCore? 'CORE · No editable. Crea una sobreescritura en Usuario si quieres cambiarlo.' : 'Usuario · Editable'}</small>`;
+      <small>${isCore? 'CORE · No editable. Puedes crear una sobreescritura en Usuario si quieres cambiarlo.' : 'Usuario · Editable'}</small>`;
     div.querySelector('[data-action="save"]')?.addEventListener('click', ()=>{
       const esVal=document.getElementById(esId).value.trim(); let simVal=document.getElementById(simId).value.trim();
       if(!esVal){ alert("Falta Español."); return; } if(!simVal){ simVal=synth(esVal); }
@@ -577,6 +594,18 @@ function renderResults(list){
       HISTORY=[...HISTORY,{es:esVal,sim:simVal,t:new Date().toISOString()}].slice(-10);
       saveUser(USER); saveHistory(HISTORY); renderResults([{scope:"USER", es:esVal, sim:simVal}]); refreshMeta();
     });
+    div.querySelector('[data-action="delete"]')?.addEventListener('click', ()=>{
+      if(!confirm("¿Seguro que quieres eliminar este par de Usuario?")) return;
+      const esVal=document.getElementById(esId).value.trim(); let simVal=document.getElementById(simId).value.trim();
+      const kEs=normEs(esVal), kSim=normSim(simVal);
+      // Limpieza bidireccional segura
+      if(USER.es2sim && USER.es2sim[kEs]) delete USER.es2sim[kEs];
+      if(USER.sim2es && USER.sim2es[kSim]) delete USER.sim2es[kSim];
+      saveUser(USER); // push al backend
+      // No añadimos al HISTORY (solo “aprendidos”), pero refrescamos para que desaparezca
+      renderResults([]); refreshMeta();
+      alert("Eliminado. Si vuelves a traducir esa palabra, se propondrá de nuevo una forma en Simlish.");
+    });
     $results.appendChild(div);
   }
 }
@@ -587,7 +616,7 @@ document.getElementById("btnSearch")?.addEventListener("click", ()=>{
 });
 document.getElementById("btnGen")?.addEventListener("click", ()=>{
   const es= (document.getElementById("newEs")?.value||"").trim(); if(!es){ alert("Escribe Español."); return; }
-  document.getElementById("newSim").value = ensureUniqueSim(synth(es), es); // propuesta previa
+  document.getElementById("newSim").value = ensureUniqueSim(synth(es), es);
 });
 document.getElementById("btnCreate")?.addEventListener("click", ()=>{
   const $newEs=document.getElementById("newEs"); const $newSim=document.getElementById("newSim");
