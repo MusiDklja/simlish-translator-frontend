@@ -27,12 +27,12 @@
   @media(min-width:950px){.grid{grid-template-columns:1fr 1fr}}
   .card{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:16px}
   label{display:block;margin-bottom:8px}
-  textarea,button,input,select{width:100%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#071b20;color:#e6f7f4}
+  textarea,button,input,select{width:100%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#071b20;color:var(--ink)}
   textarea{min-height:170px;resize:vertical}
   .row{display:grid;gap:12px;grid-template-columns:1fr 1fr}
   .btn{cursor:pointer;transition:filter .15s ease, transform .05s ease;background:linear-gradient(180deg,var(--accent) 0%, var(--accent-strong) 100%);color:#052018;font-weight:800;border:none}
   .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(1px)}
-  .btn.sec{background:#071b20;border:1px solid var(--line);color:#e6f7f4;font-weight:600}
+  .btn.sec{background:#071b20;border:1px solid var(--line);color:#ink;font-weight:600}
   .out{white-space:pre-wrap;min-height:170px;border-radius:12px;border:1px dashed var(--line);padding:10px;background:#06141a;word-break:break-word;overflow-wrap:anywhere}
   .muted{color:var(--muted);font-size:.92rem}
   .small{font-size:.85rem}
@@ -91,7 +91,7 @@
           <span class="chip">Dirección: <b id="stateDirVal">ES→SIM</b></span>
           <span class="chip">Versión base: <b>3.1</b></span>
           <span class="chip">Aprendidos (últ. op.): <b id="stateLearnVal">0</b></span>
-          <span class="chip" id="confBadge" style="cursor:pointer" title="Ver detalles en el panel secreto">Conflictos: <b id="confCount">0</b></span>
+          <span class="chip" id="confBadge">Conflictos: <b id="confCount">0</b></span>
           <span class="chip">Lex: <b id="metaLex">-</b></span>
           <span class="chip" id="hostChip" title="Estado de sincronización con host">Host: <b id="hostState">Listo</b></span>
         </div>
@@ -119,12 +119,6 @@
         <button id="secretUnlock" class="btn" style="width:auto">OK</button>
       </div>
       <div id="secretPanel" class="card" style="display:none;margin-top:10px">
-        <!-- Conflictos activos -->
-        <details id="confBox" open style="margin-bottom:10px">
-          <summary><strong>Conflictos activos</strong> <span class="small muted">(clic para plegar)</span></summary>
-          <div id="conflicts" class="small muted" style="margin-top:6px">Sin conflictos.</div>
-        </details>
-
         <!-- Buscador / Editor -->
         <div class="chips" style="margin-bottom:8px">
           <label class="chipOpt"><input type="radio" name="mode" value="ES" checked> ES</label>
@@ -149,6 +143,14 @@
           <button id="btnCreate" class="btn">Guardar</button>
           <span class="small muted"></span>
         </div>
+
+        <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+
+        <!-- Conflictos activos -->
+        <details open>
+          <summary><strong>Conflictos activos</strong></summary>
+          <div id="confList" class="small muted" style="margin-top:8px">--</div>
+        </details>
       </div>
     </div>
     <!-- ===== /Panel secreto ===== -->
@@ -174,6 +176,9 @@ let lastLearnedCount = 0;
 /* Backend forzado */
 const BACKEND_URL = "https://simlish-translator-backend.onrender.com/";
 let pushTimer = null, pulling = false, lastPushOk = null, dirtySinceLastPush = false;
+
+/* Admin password (hash SHA-256) */
+const ADMIN_HASH_HEX = "7f62619786ad59b250343204be7eba3b6adf943139684e185ab7234e8dc7d774"; // no se expone la clave en claro
 
 const deacc = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const normEs = s => deacc(String(s||"").toLowerCase()).trim();
@@ -219,7 +224,7 @@ const DATA = {
     "clima":{"shusha":"lluvia","bravruu":"tormenta","drovak":"trueno","skrashu":"rayo/relámpago","flavru":"nieve","kravnu":"granizo","hetru":"calor","friznu":"frío","grovna":"nube oscura","prismoo":"arcoíris"},
     "cocina":{"fooba":"comida","shubra":"ropa","lavru":"lavar","olbru":"olla","frilpa":"sartén","klivra":"cuchillo","spuvu":"cuchara","platru":"plato","glavru":"vaso","ovrak":"horno","stovru":"fuego de cocina"},
     "verbos_cotidianos":{"brazu":"cocinar","nomma":"comer","gluppa":"beber","delvu":"servir","klasha":"cortar","mashka":"masticar","travnu":"ir/ir a","gavna":"tener","dropra":"dejar caer","workru":"trabajar","zurnu":"ganas/ánimo","showru":"aparecer/mostrar(se)"},
-    "sabores_estado":{"tastu":"sabrosa","friznu":"fría","brasha":"caliente","swibbu":"dulce","salgru":"salada","bitra":"amarga","sharvu":"picante","tartu":"ácida","fluska":"limpio"},
+    "sabores_estado":{"tastu":"sabrosa","brasha":"caliente","swibbu":"dulce","salgru":"salada","bitra":"amarga","sharvu":"picante","tartu":"ácida","fluska":"limpio"},
     "cuerpo":{"kavra":"cabeza","manru":"mano","okru":"ojo","mokra":"boca","legra":"pierna","podru":"pie","krovna":"corazón","bonka":"hueso","skarna":"piel"},
     "organos":{"bravna":"cerebro","stomru":"estómago","lungra":"pulmones","livru":"hígado","kidru":"riñón","krovak":"sangre","alvra":"alma","introv":"intestino","zanvak":"eterno"},
     "sentidos":{"vooba":"ver","lurmu":"oír","snorva":"oler","gustra":"saborear","takru":"tocar","senvra":"sentir","perklu":"percibir"},
@@ -229,7 +234,8 @@ const DATA = {
     "animales":{"mivvu":"gato","woofum":"perro","chirva":"ave/pájaro","bluppa":"pez","tranka":"caballo","bovru":"vaca","skivvi":"ratón","vulka":"zorro","snorka":"cerdo","balmu":"oveja"},
     "tecnologia_epico":{"netvra":"internet","stabru":"estable","zavrush":"aventuras"},
     "narrativa_raices":{"zombru":"guiar/liderar (épico)","gravnu":"aldea/ciudad grande","flowru":"flujo espiritual/energía","shobru":"mostrar/revelar"},
-    "custom":{"plarvoh":"mañana","nurplah":"juguemos"}
+    /* custom: tus fijaciones clave */
+    "custom":{"plarvoh":"mañana","nurplah":"juguemos","frizna":"fría"}
   },
   "phrasebook":{
     "saludos":{"Su laa!":"¡Hola!","Kujan teeba shoba?":"¿Cómo estás?","Welbru ta oddru Mernas ta Simms, miau.":"Bienvenidos a otro Miércoles de Sims, miau.","Mernas ta Simms zavrush, miau.":"Miércoles de Sims aventuras, miau."},
@@ -250,7 +256,7 @@ let CORE_ES2SIM=new Map(), CORE_SIM2ES=new Map(), PH_ES2SIM=new Map(), PH_SIM2ES
       const espNorm = normEs(es), simNorm = normSim(sim);
       const variants = espNorm.split(/[\/ ,]/).map(s=>s.trim()).filter(Boolean);
       for(const v of variants){ if(!CORE_ES2SIM.has(v)) CORE_ES2SIM.set(v, sim); }
-      if(!CORE_SIM2ES.has(simNorm)) CORE_SIM2ES.set(simNorm, es.split('/')[0]);
+      if(!CORE_SIM2ES.has(simNorm)) CORE_SIM2ES.set(simNorm, es.split('/')[0]); // toma la 1ra si hay "hola/bienvenidos"
     }
   }
   for(const group of Object.values(DATA.phrasebook||{})){
@@ -261,7 +267,7 @@ let CORE_ES2SIM=new Map(), CORE_SIM2ES=new Map(), PH_ES2SIM=new Map(), PH_SIM2ES
   }
 })();
 
-/* ===================== MULTI-PALABRAS SIMLISH ===================== */
+/* ===================== MULTI-PALABRAS SIMLISH (p.ej. "su laa") ===================== */
 function getMultiSimKeys(){
   const keys = new Set();
   for (const entries of Object.values(DATA.vocabulario||{})){
@@ -280,7 +286,7 @@ function compressMultiSim(text){
   for (const key of keys){
     const escaped = key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
     const re = new RegExp(`\\b${escaped}\\b`, "gi");
-    out = out.replace(re, (m)=> m.replace(/\s+/g, "_"));
+    out = out.replace(re, (m)=> m.replace(/\s+/g, "_")); // "su laa" -> "su_laa"
   }
   return out;
 }
@@ -296,19 +302,55 @@ function ensureUniqueSim(sim, es){
   for(const s of suff){ const cand=base+s; if(!currentSimOwner(cand)) return preserveCase(sim,cand); }
   let i=2; while(currentSimOwner(base+i)) i++; return preserveCase(sim, base+i);
 }
+
+/* ===================== Detector de conflictos (ignora género o/a) ===================== */
 function scanConflicts(){
-  const seen=new Map(), conflicts=[];
-  function addMap(obj){
-    for(const [es,sim] of Object.entries(obj)){
-      const s=normSim(sim), e=normEs(es);
-      if(!seen.has(s)) seen.set(s,e);
-      else if(seen.get(s)!==e) conflicts.push({sim:s,a:seen.get(s),b:e});
+  const seen = new Map();   // sim -> Set<es_norm>
+  const rawMap = new Map(); // sim -> Set<es_raw>
+
+  const addPair = (esRaw, simRaw) => {
+    const s = normSim(simRaw), eNorm = normEs(esRaw), eRaw = String(esRaw||"").trim();
+    if(!s || !eNorm) return;
+    if(!seen.has(s)) { seen.set(s, new Set()); rawMap.set(s, new Set()); }
+    seen.get(s).add(eNorm);
+    rawMap.get(s).add(eRaw);
+  };
+
+  // CORE (soporta "a/b" y "a, b")
+  for(const entries of Object.values(DATA.vocabulario||{})){
+    for(const [sim, esRaw] of Object.entries(entries||{})){
+      const variants = String(esRaw||"").split(/[\/,]/).map(v=>v.trim()).filter(Boolean);
+      (variants.length ? variants : [esRaw]).forEach(v => addPair(v, sim));
     }
   }
-  for(const entries of Object.values(DATA.vocabulario)){
-    for(const [sim,es] of Object.entries(entries)) addMap({[es]:sim});
+  // USER
+  for(const [es, sim] of Object.entries((USER&&USER.es2sim)||{})){
+    addPair(es, sim);
   }
-  addMap(USER.es2sim||{});
+
+  const isGenderVariant = (a, b) => {
+    if(a === b) return true;
+    if(a.length !== b.length) return false;
+    if(a.slice(0,-1) !== b.slice(0,-1)) return false;
+    const lastA = a.slice(-1), lastB = b.slice(-1);
+    return (lastA==='o' && lastB==='a') || (lastA==='a' && lastB==='o');
+  };
+
+  const conflicts = [];
+  for(const [sim, setNorm] of seen.entries()){
+    if(setNorm.size <= 1) continue;
+    const vals = Array.from(setNorm);
+    let allGender = true;
+    for(let i=0;i<vals.length && allGender;i++){
+      for(let j=i+1;j<vals.length && allGender;j++){
+        if(!isGenderVariant(vals[i], vals[j])) allGender = false;
+      }
+    }
+    if(allGender) continue; // sólo difiere por género → no es conflicto
+
+    const rawList = Array.from(rawMap.get(sim)||[]);
+    conflicts.push({ sim, variants: rawList });
+  }
   return conflicts;
 }
 
@@ -326,13 +368,7 @@ function detectTense(es){ if(RE.prog.test(es))return TENSE.PROG; if(FUT_LEX.test
 function xorshift32(seed){ let x=seed|0; return ()=> (x^=x<<13,x^=x>>>17,x^=x<<5,(x>>>0)/4294967296); }
 function hashStr(s){ let h=2166136261>>>0; for(const c of s) h=Math.imul(h ^ c.charCodeAt(0),16777619); return h>>>0; }
 const SYLL=["su","la","noo","boo","zim","zam","sha","bah","voh","plar","gib","yib","flo","fru","doo","ka","ru","shi","ku","va","na","mo","ta","re","lo"];
-function synth(word){
-  const w=normEs(word).replace(/[^a-z0-9\s]/g,""); if(!w) return word;
-  const rnd=xorshift32(hashStr(w)); let n=Math.max(2,Math.min(4,Math.ceil(w.length/4)));
-  let out=[]; for(let i=0;i<n;i++) out.push(SYLL[Math.floor(rnd()*SYLL.length)]);
-  let res=out.join(""); if(/r$/.test(w)) res+="ru"; if(/n$/.test(w)) res+="nu";
-  return ensureUniqueSim(res, word);
-}
+function synth(word){ const w=normEs(word).replace(/[^a-z0-9\s]/g,""); if(!w) return word; const rnd=xorshift32(hashStr(w)); let n=Math.max(2,Math.min(4,Math.ceil(w.length/4))); let out=[]; for(let i=0;i<n;i++) out.push(SYLL[Math.floor(rnd()*SYLL.length)]); let res=out.join(""); if(/r$/.test(w)) res+="ru"; if(/n$/.test(w)) res+="nu"; return ensureUniqueSim(res, word); }
 function learnPairs(pairs){
   let learned=0, stamped=[];
   for (const [esRaw, simRaw] of pairs){
@@ -405,12 +441,11 @@ function translateSIM2ES(text){
 
     for(const t0 of toks){
       if(/^[.,;:!?]$/.test(t0)){ esToks.push(t0); continue; }
-      const t = expandMultiSimToken(t0);
+      const t = expandMultiSimToken(t0);           // "su_laa" -> "su laa"
       const key = normSim(t);
 
       let es = USER.sim2es[key] || CORE_SIM2ES.get(key);
       if(!es){
-        // intenta sin prefijos/sufijos de tiempo ("dra-/to-", "-nu/-ru")
         const base = key.replace(/^(dra-|to-)/,"").replace(/(-nu|-ru)$/,"");
         es = USER.sim2es[base] || CORE_SIM2ES.get(base);
       }
@@ -436,17 +471,22 @@ const $exportBtn=document.getElementById("exportBtn"), $history=document.getElem
 const $confBadge=document.getElementById("confBadge"), $confCount=document.getElementById("confCount");
 const $hostChip=document.getElementById("hostChip"), $hostState=document.getElementById("hostState");
 const $strictBanner=document.getElementById("strictBanner");
+const $confList=document.getElementById("confList");
 
 /* ===================== UI helpers ===================== */
 function setDir(d){ CURRENT_DIR=d; const lbl=d===DIR.ES2SIM?"ES → SIM":"SIM → ES"; $dirLabel.textContent=lbl; if($stateDirVal) $stateDirVal.textContent=lbl.replace(" ",""); }
 $toggleDir.addEventListener("click", ()=> setDir(CURRENT_DIR===DIR.ES2SIM?DIR.SIM2ES:DIR.ES2SIM));
 
-function renderConflictsUI(){
-  const box = document.getElementById('conflicts');
-  if(!box) return;
-  const confs = scanConflicts();
-  if(!confs.length){ box.textContent='Sin conflictos.'; return; }
-  box.innerHTML = confs.map(c => `• <b>${c.sim}</b> ↔ <i>${c.a}</i> / <i>${c.b}</i>`).join('<br>');
+function renderConflicts(){
+  const confs=scanConflicts();
+  if($confCount) $confCount.textContent=String(confs.length);
+  if($confBadge){ $confBadge.classList.toggle("warn", confs.length>0); $confBadge.classList.toggle("ok", confs.length===0); }
+  if($confList){
+    if(!confs.length){ $confList.textContent="--"; }
+    else{
+      $confList.innerHTML = confs.map(c=>`• <b>${c.sim}</b> ↔ <i>${(c.variants||[]).join(" / ")}</i>`).join("<br>");
+    }
+  }
 }
 
 function refreshMeta(){
@@ -466,12 +506,9 @@ function refreshMeta(){
     }
   }
 
-  const confs=scanConflicts(); if($confCount) $confCount.textContent=String(confs.length);
-  if($confBadge){ $confBadge.classList.toggle("warn", confs.length>0); $confBadge.classList.toggle("ok", confs.length===0); }
+  renderConflicts();
 
   if($strictBanner){ $strictBanner.style.display="none"; }
-
-  renderConflictsUI();      // <<< importante
   updateHostIndicators();
 }
 
@@ -483,24 +520,19 @@ catch{ const ta=document.createElement("textarea"); ta.value=txt; document.body.
 $demo.addEventListener("click", ()=>{ if(CURRENT_DIR===DIR.ES2SIM){ $in.value="Ayer cociné sopa caliente, hoy la estoy sirviendo y mañana la voy a compartir."; } else { $in.value="Su laa, meeba shoba dra-brazu supa brasha. Delvu da supa wit spuvu."; } doTranslate(); });
 $exportBtn.addEventListener("click", ()=>{ const data=localStorage.getItem(KEY_USER) || "{}"; const blob=new Blob([data], {type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`simlish-vocab-user-v${CORE_VERSION}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); });
 
-/* Chip de conflictos: baja al panel (y si está bloqueado, pide clave) */
-$confBadge?.addEventListener('click', ()=>{
-  const panel=document.getElementById('secretPanel');
-  if(panel && panel.style.display!=='block'){
-    alert('Desbloquea el panel con la contraseña para ver los conflictos.');
-    document.getElementById('secretPass')?.focus();
-  }
-  panel?.scrollIntoView({behavior:'smooth'});
-});
-
-/* ===================== SECRET UNLOCK ===================== */
-document.getElementById("secretUnlock")?.addEventListener("click", ()=>{
+/* ===================== SECRET UNLOCK (hash, no clave en claro) ===================== */
+async function sha256Hex(str){
+  const enc = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+document.getElementById("secretUnlock")?.addEventListener("click", async ()=>{
   const pass = (document.getElementById("secretPass")?.value||"").trim();
-  if(pass==="724692"){
+  const hex = await sha256Hex(pass);
+  if(hex===ADMIN_HASH_HEX){
     const panel=document.getElementById("secretPanel");
     if(panel){ panel.style.display="block"; }
-    document.getElementById("secretPass").value="";
-    renderConflictsUI(); // actualiza inmediatamente al abrir
+    const fld=document.getElementById("secretPass"); if(fld) fld.value="";
   }else{ alert("Contraseña incorrecta."); }
 });
 
@@ -533,7 +565,7 @@ function renderResults(list){
         <input id="${simId}" value="${item.sim}" ${locked?'disabled':''} title="${locked?'Bloqueado':'Simlish'}"/>
         <button class="btn" ${locked?'disabled':''} data-action="save">Guardar</button>
       </div>
-      <small>${isCore? 'CORE · No editable. Puedes crear una sobreescritura en Usuario si quieres cambiarlo.' : 'Usuario · Editable'}</small>`;
+      <small>${isCore? 'CORE · No editable. Crea una sobreescritura en Usuario si quieres cambiarlo.' : 'Usuario · Editable'}</small>`;
     div.querySelector('[data-action="save"]')?.addEventListener('click', ()=>{
       const esVal=document.getElementById(esId).value.trim(); let simVal=document.getElementById(simId).value.trim();
       if(!esVal){ alert("Falta Español."); return; } if(!simVal){ simVal=synth(esVal); }
@@ -555,7 +587,7 @@ document.getElementById("btnSearch")?.addEventListener("click", ()=>{
 });
 document.getElementById("btnGen")?.addEventListener("click", ()=>{
   const es= (document.getElementById("newEs")?.value||"").trim(); if(!es){ alert("Escribe Español."); return; }
-  document.getElementById("newSim").value = ensureUniqueSim(synth(es), es);
+  document.getElementById("newSim").value = ensureUniqueSim(synth(es), es); // propuesta previa
 });
 document.getElementById("btnCreate")?.addEventListener("click", ()=>{
   const $newEs=document.getElementById("newEs"); const $newSim=document.getElementById("newSim");
