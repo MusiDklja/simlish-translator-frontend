@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta http-equiv="Content-Security-Policy"
+  content="
+    default-src 'self';
+    connect-src 'self' https: data: blob:;
+    img-src 'self' https: data:;
+    script-src 'self' 'unsafe-inline';
+    style-src  'self' 'unsafe-inline';
+    base-uri 'self';
+    frame-ancestors 'self';
+  ">
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Simlish Translator · ES ⇄ SIM · Core v3.1</title>
+<meta name="description" content="Traductor bidireccional Español ⇄ Simlish con aprendizaje y sincronización estricta a backend.">
+<style>
+  :root{ --bg:#06141a; --bg2:#071e24; --ink:#e6f7f4; --muted:#93c5c9; --line:#0f2e35; --accent:#22d3a6; --accent-strong:#10b981; --accent-warn:#eab308; --tiktok:#38bdf8; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{ margin:0; background:radial-gradient(1200px 800px at 15% -10%, #0a2b2f 0%, transparent 50%), linear-gradient(180deg,#041017,#06141a 35%, #06141a 100%); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow-x:hidden; }
+  header{padding:20px 24px;border-bottom:1px solid var(--line);background:#06141acc;backdrop-filter:blur(6px)}
+  h1{margin:0;font-size:1.25rem;display:flex;gap:10px;align-items:center}
+  .pill{display:inline-block;background:var(--accent);color:#04201a;padding:2px 10px;border-radius:999px;font-weight:800;font-size:.8rem}
+  .wrap{padding:20px 24px 28px;display:grid;gap:16px;max-width:1100px;margin:0 auto}
+  .grid{display:grid;gap:16px}
+  @media(min-width:950px){.grid{grid-template-columns:1fr 1fr}}
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:16px}
+  label{display:block;margin-bottom:8px}
+  textarea,button,input,select{width:100%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#071b20;color:var(--ink)}
+  textarea{min-height:170px;resize:vertical}
+  .row{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+  .btn{cursor:pointer;transition:filter .15s ease, transform .05s ease;background:linear-gradient(180deg,var(--accent) 0%, var(--accent-strong) 100%);color:#052018;font-weight:800;border:none}
+  .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(1px)}
+  .btn.sec{background:#071b20;border:1px solid var(--line);color:var(--ink);font-weight:600}
+  .out{white-space:pre-wrap;min-height:170px;border-radius:12px;border:1px dashed var(--line);padding:10px;background:#06141a;word-break:break-word;overflow-wrap:anywhere}
+  .muted{color:var(--muted);font-size:.92rem}
+  .small{font-size:.85rem}
+  .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#071b20;padding:6px 10px;border-radius:999px}
+  .state{display:flex;gap:8px;flex-wrap:wrap}
+  .ok{color:var(--accent-strong)} .warn{color:var(--accent-warn)}
+  .dirbtn{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;width:auto;min-width:180px}
+  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#071b20;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 6px}
+  details summary{cursor:pointer}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  a{color:var(--tiktok);text-decoration:none;font-weight:600}
+  a:hover{text-decoration:underline}
+  /* Admin */
+  .admin-locked{display:grid;gap:10px;grid-template-columns:1fr auto;align-items:center;margin-top:16px}
+  .admin-panel{display:none;margin-top:12px}
+  .admin-panel.show{display:block}
+  .admin-grid{display:grid;gap:12px}
+  .kv{display:grid;grid-template-columns:140px 1fr;gap:8px;align-items:center}
+  .guard{border:1px dashed var(--line);padding:12px;border-radius:12px;background:#071b20;margin-bottom:12px}
+  .banner{margin-top:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#071b20}
+  .flex{display:flex;gap:8px;flex-wrap:wrap}
+  .list{display:grid;gap:8px;margin-top:8px}
+  .item{display:grid;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#06181e}
+  .item .row2{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}
+  .item small{color:var(--muted)}
+</style>
+</head>
+<body>
+  <header>
+    <h1>Simlish Translator <span class="pill">ES ⇄ SIM · Core v3.1</span></h1>
+  </header>
+
+  <main class="wrap">
+    <section class="grid">
+      <div class="card">
+        <div class="row" style="grid-template-columns:1fr auto">
+          <label for="in" style="margin:0;align-self:center">Entrada</label>
+          <button id="toggleDir" class="btn dirbtn" title="Cambiar dirección"><span id="dirLabel">ES → SIM</span></button>
+        </div>
+        <textarea id="in" placeholder="Escribe aquí."></textarea>
+        <div class="row" style="margin-top:12px">
+          <button id="translate" class="btn">Traducir</button>
+          <button id="clear" class="btn sec" title="Borrar texto">Limpiar</button>
+        </div>
+        <p class="muted small">Aprendizaje estricto: sólo se guarda si hay <span class="kbd">BACKEND_URL</span> configurado (Admin).</p>
+        <div class="toolbar">
+          <button id="exportBtn" class="btn sec" title="Exportar vocab de usuario">Exportar vocab</button>
+        </div>
+        <div id="strictBanner" class="banner small muted" style="display:none"></div>
+      </div>
+
+      <div class="card">
+        <label for="out">Salida</label>
+        <div id="out" class="out" aria-live="polite">--</div>
+        <div class="row" style="margin-top:12px">
+          <button id="copy" class="btn">Copiar</button>
+          <button id="demo" class="btn sec" title="Ejemplo rápido">Ejemplo</button>
+        </div>
+        <div class="state" style="margin-top:12px">
+          <span class="chip">Modo: <b>Estricto</b></span>
+          <span class="chip">Dirección: <b id="stateDirVal">ES→SIM</b></span>
+          <span class="chip">Versión base: <b>3.1</b></span>
+          <span class="chip">Aprendidos (últ. op.): <b id="stateLearnVal">0</b></span>
+          <span class="chip" id="confBadge">Conflictos: <b id="confCount">0</b></span>
+          <span class="chip">Lex: <b id="metaLex">-</b></span>
+          <span class="chip" id="hostChip" title="Estado de sincronización con host">Host: <b id="hostState">Sin URL</b></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <details open>
+        <summary><strong>Historial (últimos 10 aprendidos)</strong></summary>
+        <div id="history" class="small muted" style="margin-top:8px">--</div>
+      </details>
+      <details style="margin-top:12px">
+        <summary><strong>Gramática & Vocab cargados</strong></summary>
+        <div class="small muted" id="meta"></div>
+      </details>
+      <p class="muted small" style="margin-top:10px">
+        Tiempos: prefijos <span class="kbd">dra-</span>/<span class="kbd">to-</span>, sufijos <span class="kbd">-nu</span>/<span class="kbd">-ru</span> con auxiliar <span class="kbd">shoba</span>.
+      </p>
+    </section>
+
+    <!-- Admin -->
+    <section class="card">
+      <h3 style="margin-top:0">Herramientas avanzadas (solo admin)</h3>
+      <div class="admin-locked">
+        <input id="adminPass" type="password" placeholder="Contraseña" aria-label="Contraseña"/>
+        <button id="adminUnlock" class="btn" style="width:auto">Desbloquear</button>
+      </div>
+
+      <div id="adminPanel" class="admin-panel">
+        <div class="admin-grid">
+          <!-- Configurar backend -->
+          <div class="guard">
+            <h4 style="margin:.2rem 0">Configurar backend</h4>
+            <div class="kv">
+              <span>BACKEND_URL:</span>
+              <input id="backendUrl" type="url" placeholder="https://tu-endpoint.com/"/>
+            </div>
+            <div class="kv">
+              <span></span>
+              <button id="beginUpdateBackend" class="btn sec" style="width:auto">Actualizar backend…</button>
+            </div>
+            <!-- Confirmación en dos pasos -->
+            <div id="backendConfirm" style="display:none; margin-top:10px">
+              <p class="small muted" style="margin:0 0 8px">¿Estás segura/o de cambiar el backend? Esto afectará la sincronización automática.</p>
+              <div class="kv">
+                <span>Contraseña:</span>
+                <input id="backendPassConfirm" type="password" placeholder="Reingresa contraseña"/>
+              </div>
+              <div class="row" style="margin-top:10px">
+                <button id="confirmBackendYes" class="btn">Sí, actualizar</button>
+                <button id="confirmBackendNo" class="btn sec">No, cancelar</button>
+              </div>
+            </div>
+            <p id="hostStatus" class="small muted" style="margin-top:10px">Host: sin URL configurada.</p>
+          </div>
+
+          <!-- Buscador/Editor de pares -->
+          <div class="guard">
+            <h4 style="margin:.2rem 0">Buscador / Editor de pares (ES ⇄ SIM)</h4>
+            <div class="flex">
+              <label class="chip"><input type="radio" name="mode" value="ES" checked style="margin-right:8px">Buscar por Español</label>
+              <label class="chip"><input type="radio" name="mode" value="SIM" style="margin-right:8px">Buscar por Simlish</label>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <input id="searchQuery" placeholder="Escribe palabra a buscar…"/>
+              <button id="btnSearch" class="btn sec">Buscar</button>
+            </div>
+            <div id="searchInfo" class="small muted" style="margin-top:6px">Edita solo pares de <b>Usuario</b>. CORE es de solo lectura.</div>
+            <div id="results" class="list"></div>
+
+            <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+            <h4 style="margin:.2rem 0">Crear nuevo par</h4>
+            <div class="row">
+              <input id="newEs" placeholder="Español (obligatorio)"/>
+              <input id="newSim" placeholder="Simlish (opcional: si lo dejas vacío se genera)"/>
+            </div>
+            <div class="row" style="margin-top:8px;grid-template-columns:auto 1fr">
+              <button id="btnCreate" class="btn">Crear y guardar</button>
+              <span class="small muted">Pasa por anti-colisión automáticamente.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer style="text-align:center;padding:16px;font-size:.85rem;color:var(--muted);border-top:1px solid var(--line);margin-top:24px">
+    <a href="https://www.tiktok.com/@musimiau?_t=ZM-8stssM0VX78&_r=1" target="_blank">@musimiau en TikTok🧡💜</a>
+    <br>
+    ☆ Creado por <b style="color:var(--accent)">&nbsp;Musi Dklja&nbsp;</b> (28 de Agosto del 2025)
+  </footer>
+
+<script>
+/* ===================== CONFIG + HELPERS ===================== */
+const CORE_VERSION = "3.1";
+const STRICT_MODE = true; // MODO ESTRICTO: sin backend no se aprende ni se edita
+const KEY_USER = `simlishLexiconUser:${CORE_VERSION}`;
+const KEY_HISTORY = `simlishLexiconHistory:${CORE_VERSION}`;
+const KEY_BACKEND = `simlishBackendUrl:${CORE_VERSION}`;
+const KEY_BACKEND_PROXY = `simlishBackendProxy:${CORE_VERSION}`; // << NUEVO
+const DIR = { ES2SIM:"ES2SIM", SIM2ES:"SIM2ES" };
+let CURRENT_DIR = DIR.ES2SIM;
+let lastLearnedCount = 0;
+
+/* Sync flags */
+let BACKEND_URL = "";
+let USE_PROXY = false; // << NUEVO
+let pushTimer = null;
+let pulling = false;
+let lastPushOk = null; // true|false|null
+let dirtySinceLastPush = false;
+
+/* Proxy CORS público (solo compatibilidad) */
+const PROXY = "https://cors.isomorphic-git.org/"; // añade CORS-OK
+
+const deacc = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const normEs = s => deacc(String(s||"").toLowerCase()).trim();
+const normSim = s => String(s||"").toLowerCase().trim();
+
+function defaultUserStore(){ return { es2sim:{}, sim2es:{} }; }
+function loadUser(){ try{ return JSON.parse(localStorage.getItem(KEY_USER)||"") || defaultUserStore(); } catch{ return defaultUserStore(); } }
+function saveUser(store){ try{ localStorage.setItem(KEY_USER, JSON.stringify(store)); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
+function loadHistory(){ try{ return JSON.parse(localStorage.getItem(KEY_HISTORY)||"[]"); }catch{ return []; } }
+function saveHistory(list){ try{ localStorage.setItem(KEY_HISTORY, JSON.stringify(list.slice(-10))); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
+function loadBackendUrl(){ try{ return localStorage.getItem(KEY_BACKEND) || ""; }catch{ return ""; } }
+function saveBackendUrl(u){ try{ localStorage.setItem(KEY_BACKEND, u||""); }catch{} BACKEND_URL = u||""; updateHostIndicators(); }
+function loadProxyFlag(){ try{ return localStorage.getItem(KEY_BACKEND_PROXY)==="1"; }catch{ return false; } }
+function saveProxyFlag(f){ try{ localStorage.setItem(KEY_BACKEND_PROXY, f?"1":"0"); }catch{} USE_PROXY = !!f; updateHostIndicators(); }
+function canLearn(){ return STRICT_MODE ? Boolean(BACKEND_URL) : true; }
+
+let USER = loadUser();
+let HISTORY = loadHistory();
+
+/* ===================== CORE DATA (recortado por brevedad) ===================== */
+const DATA = {
+  "gramatica": { "orden":"Sujeto – Verbo – Objeto (SVO)","adjetivo":"Después del sustantivo","posesion":"Con 'ta' → Parshu ta meeba = mi pareja",
+    "negacion":{"nah":"no (simple)","nuvva":"nunca / negación fuerte"},
+    "plural":"Usar -s / -as / -us según sonoridad",
+    "comparativos":{"moo":"más","minnu":"menos","firbs":"muy"},
+    "tiempos":{ "auxiliar":"shoba = estar/ser","prefijos":{"dra-":"pasado","to-":"futuro"},"sufijos":{"-nu":"presente / en acto","-ru":"aspecto en curso"},
+      "ejemplos":{"presente_simple":"Meeba nomma","presente_cont":"Meeba shoba nomma-nu","pasado":"Meeba shoba dra-nomma","futuro":"Meeba shoba to-nomma"} },
+    "interrogativos":{"harva":"qué/cómo (general)","kujan":"cómo (coloquial)"},
+    "conectores":{"plubbu":"y/pero","ta":"de/que/para/a","wit":"con","palu":"para","entru":"entonces","kuzra":"porque","thooba":"aunque","sooba":"así que","hovra":"sin embargo","pleebu":"si / por ejemplo"},
+    "adverbios_tiempo":{"nuvra":"ahora","yestu":"ayer","todra":"antes","tombru":"mañana","soonru":"pronto","dovra":"noche","sulah":"día"}
+  },
+  "vocabulario": {
+    "pronombres":{"meeba":"yo","teeba":"tú","heeba":"él","sheba":"ella","weeba":"nosotros","da":"el/la/los/las"},
+    "basicos":{"yibu":"sí","nah":"no","nuvva":"nunca","su laa":"hola/bienvenidos","da vaa":"adiós","felnu":"perdón","firvu":"bien hecho","whazzu":"¿qué pasa?","frezzu":"felicidades","vrashoo":"ojalá","welbru":"bienvenido","oddru":"otro","gratvu":"gracias","prezooba":"bonito/hermoso","nibbu":"bebé"},
+    "verbos_cotidianos":{"brazu":"cocinar","nomma":"comer","gluppa":"beber","delvu":"servir","klasha":"cortar","mashka":"masticar","travnu":"ir/ir a","gavna":"tener","dropra":"dejar caer","workru":"trabajar","zurnu":"ganas/ánimo","showru":"aparecer/mostrar(se)"},
+    "custom":{"plarvoh":"mañana","nurplah":"juguemos"}
+  },
+  "phrasebook":{}
+};
+const CUSTOM_SIM_SET = new Set(Object.keys(DATA.vocabulario.custom || {}).map(k=>normSim(k)));
+
+/* ===================== ÍNDICES ===================== */
+let CORE_ES2SIM=new Map(), CORE_SIM2ES=new Map();
+(function buildCore(){
+  for(const entries of Object.values(DATA.vocabulario)){
+    for(const [sim, es] of Object.entries(entries)){
+      const espNorm = normEs(es), simNorm = normSim(sim);
+      const variants = espNorm.split(/[\/ ,]/).map(s=>s.trim()).filter(Boolean);
+      for(const v of variants){ if(!CORE_ES2SIM.has(v)) CORE_ES2SIM.set(v, sim); }
+      if(!CORE_SIM2ES.has(simNorm)) CORE_SIM2ES.set(simNorm, es.split('/')[0]);
+    }
+  }
+})();
+
+/* ===================== MULTI PALABRAS, ANTICOLISIONES (igual que antes) ===================== */
+function currentSimOwner(sim){ const k=normSim(sim); if(USER.sim2es[k]) return {scope:"USER", es:USER.sim2es[k]}; if(CORE_SIM2ES.has(k)) return {scope:"CORE", es:CORE_SIM2ES.get(k)}; return null; }
+function preserveCase(o,r){ return /^[A-Z]/.test(o) ? r.charAt(0).toUpperCase()+r.slice(1) : r; }
+function ensureUniqueSim(sim, es){
+  if(CUSTOM_SIM_SET.has(normSim(sim))) return sim;
+  let base=normSim(sim); const owner=currentSimOwner(base);
+  if(!owner || normEs(owner.es)===normEs(es)) return sim;
+  const suff=["ah","eh","oh","nu","ru","va","la","ra","ba"];
+  for(const s of suff){ const cand=base+s; if(!currentSimOwner(cand)) return preserveCase(sim,cand); }
+  let i=2; while(currentSimOwner(base+i)) i++; return preserveCase(sim, base+i);
+}
+function scanConflicts(){
+  const seen=new Map(), conflicts=[];
+  function addMap(obj){ for(const [es,sim] of Object.entries(obj)){ const s=normSim(sim), e=normEs(es); if(!seen.has(s)) seen.set(s,e); else if(seen.get(s)!==e) conflicts.push({sim:s,a:seen.get(s),b:e}); } }
+  for(const entries of Object.values(DATA.vocabulario)){ for(const [sim,es] of Object.entries(entries)) addMap({[es]:sim}); }
+  addMap(USER.es2sim||{}); return conflicts;
+}
+
+/* ===================== Tiempos + Generador + Aprendizaje ===================== */
+const adv = DATA.gramatica.adverbios_tiempo || {};
+const PAST_LEX=new RegExp("\\b("+["ayer","antes","ya",adv.yestu,"anoche"].filter(Boolean).join("|")+")\\b","i");
+const FUT_LEX=new RegExp("\\b("+["mañana","manana","luego","después","despues","pronto",adv.tombru,"pasado mañana"].filter(Boolean).join("|")+")\\b","i");
+const PRES_LEX=new RegExp("\\b("+["hoy","ahora","enseguida",adv.nuvra].filter(Boolean).join("|")+")\\b","i");
+const RE={ ira:/\b(voy|vas|va|vamos|van)\s+a\s+[a-záéíóúñü]+(ar|er|ir)\b/i, fut:/\b[a-záéíóúñü]+(ré|rás|rá|remos|rán)\b/i,
+  pret:/\b[a-záéíóúñü]+(é|aste|ó|amos|aron|í|iste|ió|imos|ieron)\b/i, imp:/\b[a-záéíóúñü]+(aba|abas|ábamos|aban|ía|ías|íamos|ían)\b/i,
+  pastIrreg:/\b(fui|fue|fuiste|fuimos|fueron|estuve|estuviste|estuvo|estuvimos|estuvieron|era|eras|éramos|eran|estaba|estabas|estábamos|estaban)\b/i,
+  prog:/\b(estoy|estas|está|estamos|están|estás)\s+[a-záéíóúñü]+(ando|iendo|yendo)\b/i };
+const TENSE={ PAST:"past", PRESENT:"present", FUTURE:"future", PROG:"progressive" };
+function detectTense(es){ if(RE.prog.test(es))return TENSE.PROG; if(FUT_LEX.test(es)||RE.ira.test(es)||RE.fut.test(es))return TENSE.FUTURE; if(PAST_LEX.test(es)||RE.pret.test(es)||RE.imp.test(es)||RE.pastIrreg.test(es))return TENSE.PAST; if(PRES_LEX.test(es))return TENSE.PRESENT; return TENSE.PRESENT; }
+function xorshift32(seed){ let x=seed|0; return ()=> (x^=x<<13,x^=x>>>17,x^=x<<5,(x>>>0)/4294967296); }
+function hashStr(s){ let h=2166136261>>>0; for(const c of s) h=Math.imul(h ^ c.charCodeAt(0),16777619); return h>>>0; }
+const SYLL=["su","la","noo","boo","zim","zam","sha","bah","voh","plar","gib","yib","flo","fru","doo","ka","ru","shi","ku","va","na","mo","ta","re","lo"];
+function synth(word){ const w=normEs(word).replace(/[^a-z0-9\s]/g,""); if(!w) return word; const rnd=xorshift32(hashStr(w)); let n=Math.max(2,Math.min(4,Math.ceil(w.length/4))); let out=[]; for(let i=0;i<n;i++) out.push(SYLL[Math.floor(rnd()*SYLL.length)]); let res=out.join(""); if(/r$/.test(w)) res+="ru"; if(/n$/.test(w)) res+="nu"; res=ensureUniqueSim(res, word); return res; }
+function learnPairs(pairs){ if(!canLearn()) return 0; let learned=0, stamped=[]; for(const [es, simRaw] of pairs){ const kEs=normEs(es); if(!kEs) continue; const sim=ensureUniqueSim(simRaw, es); const kSim=normSim(sim); if(!kSim) continue; if(!USER.es2sim[kEs]){ USER.es2sim[kEs]=sim; learned++; } if(!USER.sim2es[kSim]){ USER.sim2es[kSim]=es; } stamped.push({es, sim, t:new Date().toISOString()}); } if(stamped.length){ HISTORY=[...HISTORY,...stamped].slice(-10); saveHistory(HISTORY); } if(learned>0) saveUser(USER); return learned; }
+
+/* ===================== Traducción (igual que antes) ===================== */
+function tokensOf(text){ return text.match(/[\wáéíóúñü_]+|[.,;:!?]/gi) || [text]; }
+function translateES2SIM(text){ const sentences=text.match(/[^.!?]+[.!?]?/g) || [text]; let newPairs=[]; const out=sentences.map(raw=>{ const s=raw.trim(); if(!s) return ""; const hasNever=/\bnunca\b/i.test(s); const hasNo=/\bno\b/i.test(s); const NEG=hasNever?"nuvva":(hasNo?"nah":""); const tense=detectTense(s); const toks=tokensOf(s); const simToks=[]; let injected=false; for(const t of toks){ if(/^[.,;:!?]$/.test(t)){ simToks.push(t); continue; } const key=normEs(t); let sim=USER.es2sim[key] || CORE_ES2SIM.get(key); if(!sim){ sim=synth(t); newPairs.push([key, sim]); } else { sim=ensureUniqueSim(sim, t); } const isVerb=["brazu","nomma","gluppa","delvu","klasha","mashka","travnu","gavna","dropra","workru","zurnu","showru"].includes(normSim(sim)); if(!injected && isVerb){ let pref="", suf="", aux="shoba"; if(tense===TENSE.PAST) pref="dra-"; else if(tense===TENSE.FUTURE) pref="to-"; else if(tense===TENSE.PRESENT) suf="-nu"; else if(tense===TENSE.PROG) suf="-ru"; let phrase=`${aux} ${pref}${sim}${suf}`; if(NEG) phrase=`${NEG} ${phrase}`; simToks.push(phrase); injected=true; }else{ if(/^no$|^nunca$/i.test(t)) continue; simToks.push(sim); } } let outS=simToks.join(" ").replace(/\s+([.,;:!?])/g,"$1").replace(/\s+/g," ").trim(); if(outS) outS=outS.charAt(0).toUpperCase()+outS.slice(1); return outS; }).join(" "); const learnedFromGen=canLearn()?learnPairs(newPairs):0; return { text: out, learnedFromGen }; }
+function translateSIM2ES(text){ const sentences=text.match(/[^.!?]+[.!?]?/g) || [text]; const out=sentences.map(raw=>{ const s=raw.trim(); if(!s) return ""; const toks=tokensOf(s); const esToks=[]; for(const t of toks){ if(/^[.,;:!?]$/.test(t)){ esToks.push(t); continue; } const key=normSim(t); let es=USER.sim2es[key] || CORE_SIM2ES.get(key); if(!es){ const base=key.replace(/^(dra-|to-)/,"").replace(/(-nu|-ru)$/,""); es=USER.sim2es[base] || CORE_SIM2ES.get(base); } if(!es){ es=t; } esToks.push(es); } let outS=esToks.join(" ").replace(/\s+([.,;:!?])/g,"$1").replace(/\s+/g," ").trim(); if(outS) outS=outS.charAt(0).toUpperCase()+outS.slice(1); return outS; }).join(" "); return { text: out }; }
+
+/* ===================== UI refs ===================== */
+const $in=document.getElementById("in"), $out=document.getElementById("out");
+const $btn=document.getElementById("translate"), $clear=document.getElementById("clear");
+const $copy=document.getElementById("copy"), $demo=document.getElementById("demo");
+const $toggleDir=document.getElementById("toggleDir"), $dirLabel=document.getElementById("dirLabel");
+const $stateDirVal=document.getElementById("stateDirVal"), $stateLearnVal=document.getElementById("stateLearnVal");
+const $meta=document.getElementById("meta"), $metaLex=document.getElementById("metaLex");
+const $exportBtn=document.getElementById("exportBtn"), $history=document.getElementById("history");
+const $confBadge=document.getElementById("confBadge"), $confCount=document.getElementById("confCount");
+const $hostChip=document.getElementById("hostChip"), $hostState=document.getElementById("hostState");
+const $strictBanner=document.getElementById("strictBanner");
+
+/* Admin */
+const $adminPass=document.getElementById("adminPass");
+const $adminUnlock=document.getElementById("adminUnlock");
+const $adminPanel=document.getElementById("adminPanel");
+const $backendUrl=document.getElementById("backendUrl");
+const $beginUpdateBackend=document.getElementById("beginUpdateBackend");
+const $backendConfirm=document.getElementById("backendConfirm");
+const $backendPassConfirm=document.getElementById("backendPassConfirm");
+const $confirmBackendYes=document.getElementById("confirmBackendYes");
+const $confirmBackendNo=document.getElementById("confirmBackendNo");
+const $hostStatus=document.getElementById("hostStatus");
+
+/* Editor */
+const $btnSearch=document.getElementById("btnSearch");
+const $searchQuery=document.getElementById("searchQuery");
+const $results=document.getElementById("results");
+const $searchInfo=document.getElementById("searchInfo");
+const $newEs=document.getElementById("newEs");
+const $newSim=document.getElementById("newSim");
+const $btnCreate=document.getElementById("btnCreate");
+
+function setDir(d){ CURRENT_DIR=d; const lbl=d===DIR.ES2SIM?"ES → SIM":"SIM → ES"; $dirLabel.textContent=lbl; if($stateDirVal) $stateDirVal.textContent=lbl.replace(" ",""); }
+$toggleDir.addEventListener("click", ()=> setDir(CURRENT_DIR===DIR.ES2SIM?DIR.SIM2ES:DIR.ES2SIM));
+
+function refreshMeta(){
+  const cats=Object.keys(DATA.vocabulario||{}); let totalCore=0; for(const c of cats) totalCore+=Object.keys(DATA.vocabulario[c]).length;
+  const userES=Object.keys(USER.es2sim||{}).length, userSIM=Object.keys(USER.sim2es||{}).length;
+  if($meta) $meta.textContent=`Categorías: ${cats.length} · Entradas base: ${totalCore} · Usuario: ${userES}/${userSIM} (ES/SIM).`;
+  if($metaLex) $metaLex.textContent=`${totalCore} + ${userES}↑`;
+  if($stateLearnVal) $stateLearnVal.textContent=String(lastLearnedCount||0);
+  const confs=scanConflicts(); if($confCount) $confCount.textContent=String(confs.length);
+  if($confBadge){ $confBadge.classList.toggle("warn", confs.length>0); $confBadge.classList.toggle("ok", confs.length===0); }
+  const can=canLearn();
+  $strictBanner.style.display = can ? "none" : "block";
+  if(!can){ $strictBanner.innerHTML="🔒 Modo estricto: <b>sin backend</b> no se guardará lo aprendido ni se podrán editar pares. Configura el backend en Admin."; }
+  updateHostIndicators();
+}
+
+$btn.addEventListener("click", doTranslate);
+$clear.addEventListener("click", ()=>{ $in.value=""; $out.textContent="--"; lastLearnedCount=0; refreshMeta(); });
+$copy.addEventListener("click", async ()=>{ const txt=$out.textContent.trim(); if(!txt||txt==="--"){ alert("No hay texto para copiar."); return; } try{ await navigator.clipboard.writeText(txt); $copy.textContent="¡Copiado!"; setTimeout(()=>{$copy.textContent="Copiar";},900); }
+catch{ const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); $copy.textContent="¡Copiado!"; } finally{ document.body.removeChild(ta); setTimeout(()=>{$copy.textContent="Copiar";},900); } } });
+$demo.addEventListener("click", ()=>{ if(CURRENT_DIR===DIR.ES2SIM){ $in.value="Ayer cociné sopa caliente, hoy la estoy sirviendo y mañana la voy a compartir."; } else { $in.value="Su laa, meeba shoba dra-brazu supa brasha. Delvu da supa wit spuvu."; } doTranslate(); });
+$exportBtn.addEventListener("click", ()=>{ const data=localStorage.getItem(KEY_USER) || "{}"; const blob=new Blob([data], {type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`simlish-vocab-user-v${CORE_VERSION}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); });
+
+/* ===================== ADMIN: desbloqueo + backend ===================== */
+$adminUnlock.addEventListener("click", ()=>{ const ok = ($adminPass.value||"")==="724692"; if(!ok){ alert("Contraseña incorrecta."); return; } $adminPanel.classList.add("show"); $adminPass.value=""; $backendUrl.value=loadBackendUrl(); USE_PROXY=loadProxyFlag(); updateHostIndicators(); });
+$beginUpdateBackend.addEventListener("click", ()=>{ $backendConfirm.style.display="block"; $backendPassConfirm.value=""; $backendPassConfirm.focus(); });
+$confirmBackendNo.addEventListener("click", ()=>{ $backendConfirm.style.display="none"; });
+
+/* --- Helper robusto para probar el backend (directo y luego proxy) --- */
+function wrap(u){ return USE_PROXY ? (PROXY + u) : u; }
+async function tryFetch(url){ try{ const r=await fetch(url,{method:"GET",mode:"cors",cache:"no-store",redirect:"follow",credentials:"omit"}); if(r.ok){ await r.clone().json().catch(()=>{}); return true; } }catch(_){ } return false; }
+async function testBackendURL(urlRaw){
+  const clean=(urlRaw||"").trim();
+  const base = clean.endsWith("/") ? clean : (clean + "/");
+  // 1) directo con / y sin /
+  if(await tryFetch(base) || await tryFetch(base.slice(0,-1))) return { ok:true, url:base, viaProxy:false };
+  // 2) espera y reintenta directo
+  await new Promise(res=>setTimeout(res,1500));
+  if(await tryFetch(base) || await tryFetch(base.slice(0,-1))) return { ok:true, url:base, viaProxy:false };
+  // 3) último recurso: proxy CORS
+  if(await tryFetch(PROXY+base) || await tryFetch(PROXY+base.slice(0,-1))) return { ok:true, url:base, viaProxy:true };
+  return { ok:false, url:base, viaProxy:false };
+}
+
+$confirmBackendYes.addEventListener("click", async ()=>{
+  const pass=($backendPassConfirm.value||""); if(pass!=="724692"){ alert("Contraseña incorrecta."); return; }
+  let url=($backendUrl.value||"").trim(); if(!/^https?:\/\//i.test(url)){ alert("La URL debe comenzar con https://"); return; }
+
+  const test=await testBackendURL(url);
+  if(!test.ok){
+    saveBackendUrl(url); saveProxyFlag(false);
+    lastPushOk=false; $hostStatus.textContent=`Host: ${url} (sin respuesta; revisa URL)`;
+    updateHostIndicators();
+    alert("Se guardó la URL, pero el backend no respondió aun con reintento y proxy. Revisa la URL y vuelve a probar.");
+    return;
+  }
+
+  saveBackendUrl(test.url);
+  saveProxyFlag(test.viaProxy);
+  lastPushOk=true; $hostStatus.textContent=`Host: ${test.url} (OK${test.viaProxy?" via proxy":""})`;
+  updateHostIndicators();
+  await pullFromHost();
+  $backendConfirm.style.display="none";
+});
+
+/* ===================== SYNC (usa proxy si está activo) ===================== */
+function updateHostIndicators(){
+  BACKEND_URL=loadBackendUrl(); USE_PROXY=loadProxyFlag();
+  if(!BACKEND_URL){ $hostState.textContent="Sin URL"; $hostChip.classList.remove("ok","warn"); if($hostStatus) $hostStatus.textContent="Host: sin URL configurada."; return; }
+  const tag = (lastPushOk===true) ? ("OK"+(USE_PROXY?" (proxy)":"")) : (lastPushOk===false ? "Error" : "Listo");
+  $hostState.textContent = tag; $hostChip.classList.toggle("ok", lastPushOk===true); $hostChip.classList.toggle("warn", lastPushOk===false);
+  if($hostStatus){ $hostStatus.textContent=`Host: ${BACKEND_URL} (${tag})`; }
+}
+function endpoint(){ return wrap(BACKEND_URL); }
+function schedulePushToHost(){ if(!BACKEND_URL) return; clearTimeout(pushTimer); pushTimer=setTimeout(pushToHost, 600); }
+async function pushToHost(){
+  if(!BACKEND_URL) return;
+  try{
+    const payload={ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY };
+    const r=await fetch(endpoint(),{ method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload), mode:"cors", credentials:"omit" });
+    if(!r.ok) throw new Error(r.status);
+    lastPushOk=true; dirtySinceLastPush=false;
+  }catch(e){ lastPushOk=false; }
+  updateHostIndicators();
+}
+async function pullFromHost(){
+  if(!BACKEND_URL || pulling) return; pulling=true;
+  try{
+    const r=await fetch(endpoint(),{method:"GET",mode:"cors",credentials:"omit"});
+    if(!r.ok) throw new Error(r.status);
+    const data=await r.json();
+    if(data && data.user){
+      USER=USER||defaultUserStore();
+      USER.es2sim=Object.assign({}, USER.es2sim||{}, data.user.es2sim||{});
+      USER.sim2es=Object.assign({}, USER.sim2es||{}, data.user.sim2es||{});
+      saveUser(USER);
+      if(Array.isArray(data.history)){ HISTORY=data.history.slice(-10); saveHistory(HISTORY); }
+      lastPushOk=true; dirtySinceLastPush=false;
+    }
+  }catch(e){ lastPushOk=false; }
+  finally{ pulling=false; updateHostIndicators(); renderResults([]); }
+}
+function flushViaBeacon(){ if(!BACKEND_URL || !dirtySinceLastPush) return;
+  try{ const payload=JSON.stringify({ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY, flush:true });
+    const blob=new Blob([payload],{type:"application/json"}); navigator.sendBeacon(endpoint(), blob); lastPushOk=true; dirtySinceLastPush=false;
+  }catch(_){}
+}
+window.addEventListener("pagehide", flushViaBeacon);
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") flushViaBeacon(); });
+window.addEventListener("beforeunload", flushViaBeacon);
+
+/* ===================== EDITOR (igual que antes) ===================== */
+function resultsFromQuery(q, mode){ q=(q||"").trim().toLowerCase(); const items=[]; if(!q) return items;
+  if(mode==="ES"){ for(const [es,sim] of Object.entries(USER.es2sim||{})){ if(es.includes(q)) items.push({scope:"USER", es, sim}); }
+    for(const [key, sim] of CORE_ES2SIM.entries()){ if(key.includes(q)){ const es=key; if(!(USER.es2sim && USER.es2sim[es])) items.push({scope:"CORE", es, sim}); } }
+  }else{
+    for(const [simKey, es] of Object.entries(USER.sim2es||{})){ if(simKey.includes(q)) items.push({scope:"USER", es, sim:simKey}); }
+    for(const [simKey, es] of CORE_SIM2ES.entries()){ if(simKey.includes(q)){ if(!(USER.sim2es && USER.sim2es[simKey])) items.push({scope:"CORE", es, sim:simKey}); } }
+  }
+  return items.slice(0,100);
+}
+function renderResults(list){ $results.innerHTML=""; if(!list||!list.length){ $results.innerHTML=`<div class="small muted">Sin resultados.</div>`; return; }
+  for(const item of list){
+    const div=document.createElement("div"); div.className="item"; const isCore=item.scope==="CORE"; const locked=isCore || !canLearn();
+    const esId="es_"+Math.random().toString(36).slice(2), simId="sim_"+Math.random().toString(36).slice(2);
+    div.innerHTML=`<div class="row2">
+        <input id="${esId}" value="${item.es}" ${isCore?'disabled':''} title="${isCore?'CORE (solo lectura)':'Español'}"/>
+        <input id="${simId}" value="${item.sim}" ${locked?'disabled':''} title="${locked?'Bloqueado':'Simlish'}"/>
+        <button class="btn" ${locked?'disabled':''} data-action="save">Guardar</button>
+      </div>
+      <small>${isCore? 'CORE · No editable. Crea una sobreescritura en Usuario si quieres cambiarlo.' : 'Usuario · Editable'}</small>`;
+    div.querySelector('[data-action="save"]')?.addEventListener('click', ()=>{
+      if(!canLearn()){ alert("Modo estricto: configura BACKEND_URL para guardar."); return; }
+      const esVal=document.getElementById(esId).value.trim(); let simVal=document.getElementById(simId).value.trim();
+      if(!esVal){ alert("Falta Español."); return; } if(!simVal){ simVal=synth(esVal); }
+      simVal=ensureUniqueSim(simVal, esVal);
+      if(CUSTOM_SIM_SET.has(normSim(simVal)) && normEs(DATA.vocabulario.custom[simVal])!==normEs(esVal)){ alert("Esa forma Simlish está protegida en CORE/custom. Elige otra."); return; }
+      const kEs=normEs(esVal), kSim=normSim(simVal);
+      const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==simVal){ delete USER.sim2es[normSim(prevSim)]; }
+      const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==esVal){ delete USER.es2sim[normEs(prevEs)]; }
+      USER.es2sim[kEs]=simVal; USER.sim2es[kSim]=esVal; HISTORY=[...HISTORY,{es:esVal,sim:simVal,t:new Date().toISOString()}].slice(-10);
+      saveUser(USER); saveHistory(HISTORY); renderResults([{scope:"USER", es:esVal, sim:simVal}]); refreshMeta();
+    });
+    $results.appendChild(div);
+  }
+}
+$btnSearch.addEventListener("click", ()=>{ const q=$searchQuery.value||""; const mode=Array.from(document.querySelectorAll('input[name="mode"]')).find(r=>r.checked)?.value || "ES"; $searchInfo.innerHTML = canLearn() ? 'Edita solo pares de <b>Usuario</b>. CORE es de solo lectura.' : '🔒 Modo estricto: <b>sin backend</b> no podrás guardar cambios.'; renderResults(resultsFromQuery(q, mode)); });
+$btnCreate.addEventListener("click", ()=>{ if(!canLearn()){ alert("Modo estricto: configura BACKEND_URL para guardar."); return; } const es=($newEs.value||"").trim(); let sim=($newSim.value||"").trim(); if(!es){ alert("Debes escribir la palabra en Español."); return; } if(!sim){ sim=synth(es); } sim=ensureUniqueSim(sim, es);
+  if(CUSTOM_SIM_SET.has(normSim(sim)) && normEs(DATA.vocabulario.custom[sim])!==normEs(es)){ alert("Esa forma Simlish está protegida en CORE/custom. Elige otra."); return; }
+  const kEs=normEs(es), kSim=normSim(sim); const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==sim){ delete USER.sim2es[normSim(prevSim)]; }
+  const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==es){ delete USER.es2sim[normEs(prevEs)]; }
+  USER.es2sim[kEs]=sim; USER.sim2es[kSim]=es; HISTORY=[...HISTORY,{es,sim,t:new Date().toISOString()}].slice(-10); saveUser(USER); saveHistory(HISTORY);
+  $newEs.value=""; $newSim.value=""; renderResults([{scope:"USER", es, sim}]); refreshMeta(); });
+
+/* ===================== TRADUCIR ===================== */
+function doTranslate(){ lastLearnedCount=0; const inputRaw=($in.value||"").trim(); if(!inputRaw){ $out.textContent="--"; refreshMeta(); return; }
+  let resultText=""; if(CURRENT_DIR===DIR.ES2SIM){ const res=translateES2SIM(inputRaw); resultText=res.text; lastLearnedCount=res.learnedFromGen||0; if(!canLearn() && res.text){ resultText += "\n\n[🔒 Nota] Modo estricto: sin backend configurado, no se guardó ningún par nuevo."; } }
+  else { const res=translateSIM2ES(inputRaw); resultText=res.text; } $out.textContent=(resultText||"--"); refreshMeta(); }
+
+/* ===================== INICIO ===================== */
+function init(){ setDir(DIR.ES2SIM); BACKEND_URL=loadBackendUrl(); USE_PROXY=loadProxyFlag(); if(BACKEND_URL) pullFromHost(); refreshMeta(); }
+init();
+</script>
+</body>
+</html>
