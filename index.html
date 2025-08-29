@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Simlish Translator · ES ⇄ SIM · Core v3.1</title>
 <meta name="description" content="Traductor bidireccional Español ⇄ Simlish con aprendizaje y sincronización estricta a backend.">
-<!-- CSP enfocada: solo conecta al backend forzado y a self -->
+<!-- CSP: solo self y tu backend en Render -->
 <meta http-equiv="Content-Security-Policy"
   content="default-src 'self';
            connect-src 'self' https://simlish-translator-backend.onrender.com;
@@ -45,11 +45,14 @@
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   a{color:var(--tiktok);text-decoration:none;font-weight:600}
   a:hover{text-decoration:underline}
-  /* Listados */
+  /* Admin discreto */
+  .secret{max-width:1100px;margin:0 auto;padding:0 24px 12px}
   .list{display:grid;gap:8px;margin-top:8px}
   .item{display:grid;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#06181e}
   .item .row2{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}
   .item small{color:var(--muted)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chipOpt{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#071b20;padding:6px 10px;border-radius:999px}
 </style>
 </head>
 <body>
@@ -109,7 +112,41 @@
       </p>
     </section>
 
-    <!-- ADMIN ELIMINADO: no hay opciones para cambiar backend -->
+    <!-- ===== Panel secreto (sobre el footer) ===== -->
+    <div class="secret">
+      <div class="row" style="grid-template-columns:1fr auto">
+        <input id="secretPass" type="password" placeholder="" aria-label=""/>
+        <button id="secretUnlock" class="btn" style="width:auto">OK</button>
+      </div>
+      <div id="secretPanel" class="card" style="display:none;margin-top:10px">
+        <!-- Buscador / Editor -->
+        <div class="chips" style="margin-bottom:8px">
+          <label class="chipOpt"><input type="radio" name="mode" value="ES" checked> ES</label>
+          <label class="chipOpt"><input type="radio" name="mode" value="SIM"> SIM</label>
+        </div>
+        <div class="row">
+          <input id="searchQuery" placeholder="buscar…"/>
+          <button id="btnSearch" class="btn sec">Buscar</button>
+        </div>
+        <div id="searchInfo" class="small muted" style="margin-top:6px">Edita solo pares de <b>Usuario</b>. CORE es de solo lectura.</div>
+        <div id="results" class="list"></div>
+
+        <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+
+        <!-- Generador previo a guardar -->
+        <div class="row">
+          <input id="newEs" placeholder="Español"/>
+          <input id="newSim" placeholder="(generado aquí)"/>
+        </div>
+        <div class="row" style="grid-template-columns:auto auto 1fr">
+          <button id="btnGen" class="btn sec">Generar</button>
+          <button id="btnCreate" class="btn">Guardar</button>
+          <span class="small muted"></span>
+        </div>
+      </div>
+    </div>
+    <!-- ===== /Panel secreto ===== -->
+
   </main>
 
   <footer style="text-align:center;padding:16px;font-size:.85rem;color:var(--muted);border-top:1px solid var(--line);margin-top:24px">
@@ -121,19 +158,16 @@
 <script>
 /* ===================== CONFIG + HELPERS ===================== */
 const CORE_VERSION = "3.1";
-const STRICT_MODE = true; // sigue en estricto (pero siempre hay backend)
+const STRICT_MODE = true;
 const KEY_USER = `simlishLexiconUser:${CORE_VERSION}`;
 const KEY_HISTORY = `simlishLexiconHistory:${CORE_VERSION}`;
 const DIR = { ES2SIM:"ES2SIM", SIM2ES:"SIM2ES" };
 let CURRENT_DIR = DIR.ES2SIM;
 let lastLearnedCount = 0;
 
-/* Sync — backend FORZADO */
-const BACKEND_URL = "https://simlish-translator-backend.onrender.com/"; // << FORZADO
-let pushTimer = null;
-let pulling = false;
-let lastPushOk = null;
-let dirtySinceLastPush = false;
+/* Backend forzado */
+const BACKEND_URL = "https://simlish-translator-backend.onrender.com/";
+let pushTimer = null, pulling = false, lastPushOk = null, dirtySinceLastPush = false;
 
 const deacc = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const normEs = s => deacc(String(s||"").toLowerCase()).trim();
@@ -144,49 +178,112 @@ function loadUser(){ try{ return JSON.parse(localStorage.getItem(KEY_USER)||"") 
 function saveUser(store){ try{ localStorage.setItem(KEY_USER, JSON.stringify(store)); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
 function loadHistory(){ try{ return JSON.parse(localStorage.getItem(KEY_HISTORY)||"[]"); }catch{ return []; } }
 function saveHistory(list){ try{ localStorage.setItem(KEY_HISTORY, JSON.stringify(list.slice(-10))); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
-function canLearn(){ return true; } // siempre verdadero porque el backend está forzado
+function canLearn(){ return true; }
 
 let USER = loadUser();
 let HISTORY = loadHistory();
 
-/* ===================== CORE DATA (recortado) ===================== */
+/* ===================== DICCIONARIO COMPLETO (Core v3.1) ===================== */
 const DATA = {
   "gramatica": {
-    "orden":"Sujeto – Verbo – Objeto (SVO)","adjetivo":"Después del sustantivo",
-    "posesion":"Con 'ta' → Parshu ta meeba = mi pareja",
-    "negacion":{"nah":"no (simple)","nuvva":"nunca / negación fuerte"},
-    "plural":"Usar -s / -as / -us según sonoridad",
-    "comparativos":{"moo":"más","minnu":"menos","firbs":"muy"},
-    "tiempos":{ "auxiliar":"shoba = estar/ser","prefijos":{"dra-":"pasado","to-":"futuro"},"sufijos":{"-nu":"presente / en acto","-ru":"aspecto en curso"} }
+    "orden": "Sujeto – Verbo – Objeto (SVO)",
+    "adjetivo": "Después del sustantivo",
+    "posesion": "Con 'ta' → Parshu ta meeba = mi pareja",
+    "negacion": { "nah": "no (simple)", "nuvva": "nunca / negación fuerte" },
+    "plural": "Usar -s / -as / -us según sonoridad",
+    "comparativos": { "moo": "más", "minnu": "menos", "firbs": "muy" },
+    "tiempos": {
+      "auxiliar": "shoba = estar/ser",
+      "prefijos": { "dra-": "pasado", "to-": "futuro" },
+      "sufijos": { "-nu": "presente / en acto", "-ru": "aspecto en curso" }
+    },
+    "interrogativos": { "harva": "qué/cómo (general)", "kujan": "cómo (coloquial)" },
+    "conectores": {
+      "plubbu":"y/pero","ta":"de/que/para/a","wit":"con","palu":"para","entru":"entonces","kuzra":"porque","thooba":"aunque","sooba":"así que","hovra":"sin embargo","pleebu":"si / por ejemplo"
+    },
+    "adverbios_tiempo": { "nuvra":"ahora","yestu":"ayer","todra":"antes","tombru":"mañana","soonru":"pronto","dovra":"noche","sulah":"día" }
   },
+  "calendario":{ "dias":["Lurnas","Tarnas","Mernas","Juvnas","Virnas","Sabnas","Domnas"], "meses":["Enmar","Febmar","Tramar","Avramar","Majmar","Junmar","Julmar","Gostmar","Septmar","Oktmar","Novmar","Zimbar"] },
   "vocabulario": {
     "pronombres":{"meeba":"yo","teeba":"tú","heeba":"él","sheba":"ella","weeba":"nosotros","da":"el/la/los/las"},
     "basicos":{"yibu":"sí","nah":"no","nuvva":"nunca","su laa":"hola/bienvenidos","da vaa":"adiós","felnu":"perdón","firvu":"bien hecho","whazzu":"¿qué pasa?","frezzu":"felicidades","vrashoo":"ojalá","welbru":"bienvenido","oddru":"otro","gratvu":"gracias","prezooba":"bonito/hermoso","nibbu":"bebé"},
+    "lugares":{"varkun":"mercado","savrak":"escuela","tavruu":"taberna","domru":"templo","karshu":"cárcel","frambu":"granja","talvak":"taller","citra":"pueblo","shorva-midru":"plaza central"},
+    "casa":{"grivna":"pared","tavnek":"techo","grundal":"suelo","ventra":"ventana","dorvu":"puerta","skravla":"escalera","plavru":"patio","fumrak":"chimenea","slumbaa":"cama","trabka":"mesa","krinta":"silla","garvun":"armario","lumbru":"sofá","sholvik":"estante","glimra":"lámpara"},
+    "naturaleza":{"dravun":"árbol","lurvak":"bosque","rivru":"río","lagru":"lago","morvak":"mar","mornak":"montaña","vallru":"valle","plavna":"pradera","skavru":"cielo","nubba":"nube","sulvar":"sol","lunvar":"luna","strovna":"estrella","wairnu":"viento","grunva":"tierra"},
+    "clima":{"shusha":"lluvia","bravruu":"tormenta","drovak":"trueno","skrashu":"rayo/relámpago","flavru":"nieve","kravnu":"granizo","hetru":"calor","friznu":"frío","grovna":"nube oscura","prismoo":"arcoíris"},
+    "cocina":{"fooba":"comida","shubra":"ropa","lavru":"lavar","olbru":"olla","frilpa":"sartén","klivra":"cuchillo","spuvu":"cuchara","platru":"plato","glavru":"vaso","ovrak":"horno","stovru":"fuego de cocina"},
     "verbos_cotidianos":{"brazu":"cocinar","nomma":"comer","gluppa":"beber","delvu":"servir","klasha":"cortar","mashka":"masticar","travnu":"ir/ir a","gavna":"tener","dropra":"dejar caer","workru":"trabajar","zurnu":"ganas/ánimo","showru":"aparecer/mostrar(se)"},
-    "custom":{"plarvoh":"mañana","nurplah":"juguemos"}
+    "sabores_estado":{"tastu":"sabrosa","friznu":"fría","brasha":"caliente","swibbu":"dulce","salgru":"salada","bitra":"amarga","sharvu":"picante","tartu":"ácida","fluska":"limpio"},
+    "cuerpo":{"kavra":"cabeza","manru":"mano","okru":"ojo","mokra":"boca","legra":"pierna","podru":"pie","krovna":"corazón","bonka":"hueso","skarna":"piel"},
+    "organos":{"bravna":"cerebro","stomru":"estómago","lungra":"pulmones","livru":"hígado","kidru":"riñón","krovak":"sangre","alvra":"alma","introv":"intestino","zanvak":"eterno"},
+    "sentidos":{"vooba":"ver","lurmu":"oír","snorva":"oler","gustra":"saborear","takru":"tocar","senvra":"sentir","perklu":"percibir"},
+    "emociones":{"jibnu":"feliz","mavruu":"triste","dranza":"cansado","blennu":"aburrido","franvu":"preocupado","satruu":"satisfecho","sumba":"calmado","zenvru":"celoso","pravna":"orgulloso","shombra":"avergonzado","gratru":"agradecido","truval":"confiado","timbru":"tímido"},
+    "valores":{"jusvak":"justicia","kindru":"bondad","dravru":"maldad","onrak":"honor","loybru":"lealtad","savra":"sabiduría"},
+    "relaciones":{"klavu":"amigo","onbru":"solo","neebu":"vecino","vorna":"líder","zorvik":"enemigo","stravru":"desconocido","sambru":"compañero","parshu":"pareja","lomvak":"maestro","savba":"enseñar","savnu":"aprender","savrin":"aprendiz"},
+    "animales":{"mivvu":"gato","woofum":"perro","chirva":"ave/pájaro","bluppa":"pez","tranka":"caballo","bovru":"vaca","skivvi":"ratón","vulka":"zorro","snorka":"cerdo","balmu":"oveja"},
+    "tecnologia_epico":{"netvra":"internet","stabru":"estable","zavrush":"aventuras"},
+    "narrativa_raices":{"zombru":"guiar/liderar (épico)","gravnu":"aldea/ciudad grande","flowru":"flujo espiritual/energía","shobru":"mostrar/revelar"},
+    "custom":{"plarvoh":"mañana","nurplah":"juguemos"}  /* tus correcciones clave */
   },
-  "phrasebook":{}
+  "phrasebook":{
+    "saludos":{"Su laa!":"¡Hola!","Kujan teeba shoba?":"¿Cómo estás?","Welbru ta oddru Mernas ta Simms, miau.":"Bienvenidos a otro Miércoles de Sims, miau.","Mernas ta Simms zavrush, miau.":"Miércoles de Sims aventuras, miau."},
+    "cotidianas":{"Meeba gavna ta travnu ta lavru shubra, plubbu meeba gavna nuvva zurnu.":"Tengo que ir a lavar ropa y no tengo ganas.","Meeba brazu supa brasha.":"Cocino sopa caliente.","Delvu da supa wit spuvu.":"Sirve la sopa con la cuchara.","Meeba gluppa tivra brasha.":"Bebo té caliente."},
+    "vivo_humor_picante":{"Chobba entru":"Chúpalo entonces","Meeba travnu dropra da shusha":"Voy a dejar caer la lluvia","Zemma fruuvy":"Semencito rico","Klavash":"Culear","Zorva":"Zorra","Plumba fruuvy":"Pene rico","Zabbo palu da vooba":"Pico pal que lee"},
+    "tiernas":{"Puzzaa, meeba wrongru.":"Pucha, me equivoqué.","Aiaiyu, da hurtru brumba.":"Ayayay, qué dolor grande.","Nyeee, meeba nah sulah.":"Ñeee, no quiero.","Shishi, da funnu.":"Jijiji, qué chistoso."},
+    "tecnologia_deseo":{"Vrashoo ta netvra shoba stabru, klavrus Musisitos.":"Ojalá que el internet esté estable, queridos Musisitos."},
+    "extras_calendario":{"Nuvra shoba Lurnas.":"Hoy es lunes.","Tombru shoba Tarnas.":"Mañana será martes.","Ta Mernas weeba playru Simms.":"El miércoles jugamos Sims."},
+    "garabatos_chilenismos":{"Krabbo tuvorna":"Ctm","Da dravva":"La dura","Noobru klavrak":"Cabro ql","Chuvra":"Chucha","Putra da wobru":"Puta la wea","Palu da krabba":"Pa' la cagá","Travnu wobru-shaka":"Andái puro webiando","Kon kruva":"Con cuea"}
+  }
 };
-const CUSTOM_SIM_SET = new Set(Object.keys(DATA.vocabulario.custom || {}).map(k=>normSim(k)));
 
-/* ===================== Índices ===================== */
-let CORE_ES2SIM=new Map(), CORE_SIM2ES=new Map();
+/* ===================== ÍNDICES CORE + PHRASEBOOK ===================== */
+let CORE_ES2SIM=new Map(), CORE_SIM2ES=new Map(), PH_ES2SIM=new Map(), PH_SIM2ES=new Map();
 (function buildCore(){
   for(const entries of Object.values(DATA.vocabulario)){
     for(const [sim, es] of Object.entries(entries)){
       const espNorm = normEs(es), simNorm = normSim(sim);
       const variants = espNorm.split(/[\/ ,]/).map(s=>s.trim()).filter(Boolean);
       for(const v of variants){ if(!CORE_ES2SIM.has(v)) CORE_ES2SIM.set(v, sim); }
-      if(!CORE_SIM2ES.has(simNorm)) CORE_SIM2ES.set(simNorm, es.split('/')[0]);
+      if(!CORE_SIM2ES.has(simNorm)) CORE_SIM2ES.set(simNorm, es.split('/')[0]); // toma la 1ra si hay "hola/bienvenidos"
+    }
+  }
+  for(const group of Object.values(DATA.phrasebook||{})){
+    for(const [sim, es] of Object.entries(group)){
+      PH_ES2SIM.set(normEs(es), sim);
+      PH_SIM2ES.set(normSim(sim), es);
     }
   }
 })();
+
+/* ===================== MULTI-PALABRAS SIMLISH (p.ej. "su laa") ===================== */
+function getMultiSimKeys(){
+  const keys = new Set();
+  for (const entries of Object.values(DATA.vocabulario||{})){
+    for (const sim of Object.keys(entries||{})){
+      if (sim.includes(" ")) keys.add(sim.toLowerCase());
+    }
+  }
+  for (const sim of Object.keys((USER&&USER.sim2es)||{})){
+    if (sim && sim.includes(" ")) keys.add(sim.toLowerCase());
+  }
+  return Array.from(keys).sort((a,b)=> b.length - a.length);
+}
+function compressMultiSim(text){
+  let out = text;
+  const keys = getMultiSimKeys();
+  for (const key of keys){
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const re = new RegExp(`\\b${escaped}\\b`, "gi");
+    out = out.replace(re, (m)=> m.replace(/\s+/g, "_")); // "su laa" -> "su_laa"
+  }
+  return out;
+}
+function expandMultiSimToken(token){ return token.replace(/_/g, " "); }
 
 /* ===================== Utilidades varias ===================== */
 function currentSimOwner(sim){ const k=normSim(sim); if(USER.sim2es[k]) return {scope:"USER", es:USER.sim2es[k]}; if(CORE_SIM2ES.has(k)) return {scope:"CORE", es:CORE_SIM2ES.get(k)}; return null; }
 function preserveCase(o,r){ return /^[A-Z]/.test(o) ? r.charAt(0).toUpperCase()+r.slice(1) : r; }
 function ensureUniqueSim(sim, es){
-  if(CUSTOM_SIM_SET.has(normSim(sim))) return sim;
   let base=normSim(sim); const owner=currentSimOwner(base);
   if(!owner || normEs(owner.es)===normEs(es)) return sim;
   const suff=["ah","eh","oh","nu","ru","va","la","ra","ba"];
@@ -214,18 +311,40 @@ function detectTense(es){ if(RE.prog.test(es))return TENSE.PROG; if(FUT_LEX.test
 function xorshift32(seed){ let x=seed|0; return ()=> (x^=x<<13,x^=x>>>17,x^=x<<5,(x>>>0)/4294967296); }
 function hashStr(s){ let h=2166136261>>>0; for(const c of s) h=Math.imul(h ^ c.charCodeAt(0),16777619); return h>>>0; }
 const SYLL=["su","la","noo","boo","zim","zam","sha","bah","voh","plar","gib","yib","flo","fru","doo","ka","ru","shi","ku","va","na","mo","ta","re","lo"];
-function synth(word){ const w=normEs(word).replace(/[^a-z0-9\s]/g,""); if(!w) return word; const rnd=xorshift32(hashStr(w)); let n=Math.max(2,Math.min(4,Math.ceil(w.length/4))); let out=[]; for(let i=0;i<n;i++) out.push(SYLL[Math.floor(rnd()*SYLL.length)]); let res=out.join(""); if(/r$/.test(w)) res+="ru"; if(/n$/.test(w)) res+="nu"; res=ensureUniqueSim(res, word); return res; }
-function learnPairs(pairs){ if(!canLearn()) return 0; let learned=0, stamped=[]; for(const [es, simRaw] of pairs){ const kEs=normEs(es); if(!kEs) continue; const sim=ensureUniqueSim(simRaw, es); const kSim=normSim(sim); if(!kSim) continue; if(!USER.es2sim[kEs]){ USER.es2sim[kEs]=sim; learned++; }
-  if(!USER.sim2es[kSim]){ USER.sim2es[kSim]=es; } stamped.push({es, sim, t:new Date().toISOString()}); }
-  if(stamped.length){ HISTORY=[...HISTORY, ...stamped].slice(-10); saveHistory(HISTORY); }
-  if(learned>0) saveUser(USER); return learned; }
+function synth(word){ const w=normEs(word).replace(/[^a-z0-9\s]/g,""); if(!w) return word; const rnd=xorshift32(hashStr(w)); let n=Math.max(2,Math.min(4,Math.ceil(w.length/4))); let out=[]; for(let i=0;i<n;i++) out.push(SYLL[Math.floor(rnd()*SYLL.length)]); let res=out.join(""); if(/r$/.test(w)) res+="ru"; if(/n$/.test(w)) res+="nu"; return ensureUniqueSim(res, word); }
+function learnPairs(pairs){
+  let learned=0, stamped=[];
+  for (const [esRaw, simRaw] of pairs){
+    const es=String(esRaw||"").trim();
+    const sim1=String(simRaw||"").trim();
+    if(!es) continue;
+    const sim=ensureUniqueSim(sim1 || synth(es), es);
+    const kEs=normEs(es), kSim=normSim(sim);
+    if(!kSim) continue;
 
-/* ===================== Traducción ===================== */
+    const prevSim=USER.es2sim[kEs]; if(prevSim && normSim(prevSim)!==kSim){ delete USER.sim2es[normSim(prevSim)]; }
+    const prevEs=USER.sim2es[kSim]; if(prevEs && normEs(prevEs)!==kEs){ delete USER.es2sim[normEs(prevEs)]; }
+
+    if(!USER.es2sim[kEs]){ USER.es2sim[kEs]=sim; learned++; }
+    if(!USER.sim2es[kSim]){ USER.sim2es[kSim]=es; }
+    stamped.push({es, sim, t:new Date().toISOString()});
+  }
+  if(stamped.length){ HISTORY=[...HISTORY, ...stamped].slice(-10); saveHistory(HISTORY); }
+  if(learned>0) saveUser(USER);
+  return learned;
+}
+
+/* ===================== TRADUCCIÓN ===================== */
 function tokensOf(text){ return text.match(/[\wáéíóúñü_]+|[.,;:!?]/gi) || [text]; }
+
 function translateES2SIM(text){
   const sentences=text.match(/[^.!?]+[.!?]?/g) || [text]; let newPairs=[];
   const out=sentences.map(raw=>{
     const s=raw.trim(); if(!s) return "";
+
+    // Phrasebook directo (ES→SIM)
+    const pb = PH_ES2SIM.get(normEs(s.replace(/[.!?]$/,""))); if(pb) return pb;
+
     const hasNever=/\bnunca\b/i.test(s), hasNo=/\bno\b/i.test(s); const NEG=hasNever?"nuvva":(hasNo?"nah":"");
     const tense=detectTense(s); const toks=tokensOf(s); const simToks=[]; let injected=false;
     for(const t of toks){
@@ -246,23 +365,41 @@ function translateES2SIM(text){
     let outS=simToks.join(" ").replace(/\s+([.,;:!?])/g,"$1").replace(/\s+/g," ").trim();
     if(outS) outS=outS.charAt(0).toUpperCase()+outS.slice(1); return outS;
   }).join(" ");
-  const learnedFromGen=canLearn()?learnPairs(newPairs):0;
+  const learnedFromGen=learnPairs(newPairs);
   return { text: out, learnedFromGen };
 }
+
 function translateSIM2ES(text){
-  const sentences=text.match(/[^.!?]+[.!?]?/g) || [text];
-  const out=sentences.map(raw=>{
-    const s=raw.trim(); if(!s) return "";
-    const toks=tokensOf(s); const esToks=[];
-    for(const t of toks){
-      if(/^[.,;:!?]$/.test(t)){ esToks.push(t); continue; }
-      const key=normSim(t);
-      let es=USER.sim2es[key] || CORE_SIM2ES.get(key);
-      if(!es){ const base=key.replace(/^(dra-|to-)/,"").replace(/(-nu|-ru)$/,""); es=USER.sim2es[base] || CORE_SIM2ES.get(base); }
-      if(!es){ es=t; } esToks.push(es);
+  const sentences = text.match(/[^.!?]+[.!?]?/g) || [text];
+  const out = sentences.map(raw=>{
+    const s = raw.trim(); if(!s) return "";
+
+    // Phrasebook directo (SIM→ES) exacto
+    const pb = PH_SIM2ES.get(normSim(s.replace(/[.!?]$/,""))); if(pb) return pb;
+
+    // Reagrupar multi-palabras antes de tokenizar
+    const pre = compressMultiSim(s);
+    const toks = tokensOf(pre);
+    const esToks = [];
+
+    for(const t0 of toks){
+      if(/^[.,;:!?]$/.test(t0)){ esToks.push(t0); continue; }
+      const t = expandMultiSimToken(t0);           // "su_laa" -> "su laa"
+      const key = normSim(t);
+
+      let es = USER.sim2es[key] || CORE_SIM2ES.get(key);
+      if(!es){
+        // intenta sin prefijos/sufijos de tiempo ("dra-/to-", "-nu/-ru")
+        const base = key.replace(/^(dra-|to-)/,"").replace(/(-nu|-ru)$/,"");
+        es = USER.sim2es[base] || CORE_SIM2ES.get(base);
+      }
+      if(!es){ es = t; }
+      esToks.push(es);
     }
-    let outS=esToks.join(" ").replace(/\s+([.,;:!?])/g,"$1").replace(/\s+/g," ").trim();
-    if(outS) outS=outS.charAt(0).toUpperCase()+outS.slice(1); return outS;
+
+    let outS = esToks.join(" ").replace(/\s+([.,;:!?])/g,"$1").replace(/\s+/g," ").trim();
+    if(outS) outS = outS.charAt(0).toUpperCase() + outS.slice(1);
+    return outS;
   }).join(" ");
   return { text: out };
 }
@@ -285,33 +422,30 @@ $toggleDir.addEventListener("click", ()=> setDir(CURRENT_DIR===DIR.ES2SIM?DIR.SI
 
 function refreshMeta(){
   const cats=Object.keys(DATA.vocabulario||{}); let totalCore=0; for(const c of cats) totalCore+=Object.keys(DATA.vocabulario[c]).length;
+  const phCount = Object.values(DATA.phrasebook||{}).reduce((a,g)=>a+Object.keys(g).length,0);
   const userES=Object.keys(USER.es2sim||{}).length, userSIM=Object.keys(USER.sim2es||{}).length;
 
-  if($meta)    $meta.textContent    = `Categorías: ${cats.length} · Entradas base: ${totalCore} · Usuario: ${userES}/${userSIM} (ES/SIM).`;
+  if($meta)    $meta.textContent    = `Categorías: ${cats.length} · Entradas base: ${totalCore} · Phrasebook: ${phCount} · Usuario: ${userES}/${userSIM} (ES/SIM).`;
   if($metaLex) $metaLex.textContent = `${totalCore} + ${userES}↑`;
   if($stateLearnVal) $stateLearnVal.textContent = String(lastLearnedCount||0);
 
-  // Historial (últimos 10)
   if($history){
-    if(!HISTORY || !HISTORY.length){
-      $history.textContent = "--";
-    }else{
-      $history.innerHTML = HISTORY
-        .slice(-10)
-        .map(h => `• <b>${h.es}</b> ↔ <i>${h.sim}</i> <span class="muted">(${new Date(h.t||Date.now()).toLocaleString()})</span>`)
-        .join("<br>");
+    const hist = (Array.isArray(HISTORY)?HISTORY:[]).slice(-10);
+    if(!hist.length){ $history.textContent = "--"; }
+    else{
+      $history.innerHTML = hist.map(h => `• <b>${h.es}</b> ↔ <i>${h.sim}</i> <span class="muted">(${new Date(h.t||Date.now()).toLocaleString()})</span>`).join("<br>");
     }
   }
 
   const confs=scanConflicts(); if($confCount) $confCount.textContent=String(confs.length);
   if($confBadge){ $confBadge.classList.toggle("warn", confs.length>0); $confBadge.classList.toggle("ok", confs.length===0); }
 
-  // En modo forzado, nunca mostramos el banner de “sin backend”
   if($strictBanner){ $strictBanner.style.display="none"; }
 
   updateHostIndicators();
 }
 
+/* ===================== BOTONES BÁSICOS ===================== */
 $btn.addEventListener("click", doTranslate);
 $clear.addEventListener("click", ()=>{ $in.value=""; $out.textContent="--"; lastLearnedCount=0; refreshMeta(); });
 $copy.addEventListener("click", async ()=>{ const txt=$out.textContent.trim(); if(!txt||txt==="--"){ alert("No hay texto para copiar."); return; } try{ await navigator.clipboard.writeText(txt); $copy.textContent="¡Copiado!"; setTimeout(()=>{$copy.textContent="Copiar";},900); }
@@ -319,18 +453,95 @@ catch{ const ta=document.createElement("textarea"); ta.value=txt; document.body.
 $demo.addEventListener("click", ()=>{ if(CURRENT_DIR===DIR.ES2SIM){ $in.value="Ayer cociné sopa caliente, hoy la estoy sirviendo y mañana la voy a compartir."; } else { $in.value="Su laa, meeba shoba dra-brazu supa brasha. Delvu da supa wit spuvu."; } doTranslate(); });
 $exportBtn.addEventListener("click", ()=>{ const data=localStorage.getItem(KEY_USER) || "{}"; const blob=new Blob([data], {type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`simlish-vocab-user-v${CORE_VERSION}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); });
 
-/* ===================== SYNC (FORZADO) ===================== */
+/* ===================== SECRET UNLOCK ===================== */
+document.getElementById("secretUnlock")?.addEventListener("click", ()=>{
+  const pass = (document.getElementById("secretPass")?.value||"").trim();
+  if(pass==="724692"){
+    const panel=document.getElementById("secretPanel");
+    if(panel){ panel.style.display="block"; }
+    const fld=document.getElementById("secretPass"); if(fld) fld.value="";
+  }else{ alert("Contraseña incorrecta."); }
+});
+
+/* ===================== EDITOR ===================== */
+function resultsFromQuery(q, mode){
+  q=(q||"").trim().toLowerCase(); const items=[]; if(!q) return items;
+  if(mode==="ES"){
+    for(const [es,sim] of Object.entries(USER.es2sim||{})){ if(es.includes(q)) items.push({scope:"USER", es, sim}); }
+    for(const [key, sim] of CORE_ES2SIM.entries()){
+      if(key.includes(q)){
+        const es=key;
+        if(!(USER.es2sim && USER.es2sim[es])) items.push({scope:"CORE", es, sim});
+      }
+    }
+  }else{
+    for(const [simKey, es] of Object.entries(USER.sim2es||{})){ if(simKey.includes(q)) items.push({scope:"USER", es, sim:simKey}); }
+    for(const [simKey, es] of CORE_SIM2ES.entries()){ if(simKey.includes(q)){ if(!(USER.sim2es && USER.sim2es[simKey])) items.push({scope:"CORE", es, sim:simKey}); } }
+  }
+  return items.slice(0,100);
+}
+function renderResults(list){
+  const $results=document.getElementById("results"); if(!$results) return; $results.innerHTML="";
+  if(!list||!list.length){ $results.innerHTML=`<div class="small muted">Sin resultados.</div>`; return; }
+  for(const item of list){
+    const div=document.createElement("div"); div.className="item";
+    const isCore=item.scope==="CORE"; const locked=isCore ? true : false;
+    const esId="es_"+Math.random().toString(36).slice(2), simId="sim_"+Math.random().toString(36).slice(2);
+    div.innerHTML=`<div class="row2">
+        <input id="${esId}" value="${item.es}" ${isCore?'disabled':''} title="${isCore?'CORE (solo lectura)':'Español'}"/>
+        <input id="${simId}" value="${item.sim}" ${locked?'disabled':''} title="${locked?'Bloqueado':'Simlish'}"/>
+        <button class="btn" ${locked?'disabled':''} data-action="save">Guardar</button>
+      </div>
+      <small>${isCore? 'CORE · No editable. Puedes crear una sobreescritura en Usuario si quieres cambiarlo.' : 'Usuario · Editable'}</small>`;
+    div.querySelector('[data-action="save"]')?.addEventListener('click', ()=>{
+      const esVal=document.getElementById(esId).value.trim(); let simVal=document.getElementById(simId).value.trim();
+      if(!esVal){ alert("Falta Español."); return; } if(!simVal){ simVal=synth(esVal); }
+      simVal=ensureUniqueSim(simVal, esVal);
+      const kEs=normEs(esVal), kSim=normSim(simVal);
+      const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==simVal){ delete USER.sim2es[normSim(prevSim)]; }
+      const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==esVal){ delete USER.es2sim[normEs(prevEs)]; }
+      USER.es2sim[kEs]=simVal; USER.sim2es[kSim]=esVal;
+      HISTORY=[...HISTORY,{es:esVal,sim:simVal,t:new Date().toISOString()}].slice(-10);
+      saveUser(USER); saveHistory(HISTORY); renderResults([{scope:"USER", es:esVal, sim:simVal}]); refreshMeta();
+    });
+    $results.appendChild(div);
+  }
+}
+document.getElementById("btnSearch")?.addEventListener("click", ()=>{
+  const q=(document.getElementById("searchQuery")?.value)||"";
+  const mode=Array.from(document.querySelectorAll('input[name="mode"]')||[]).find(r=>r.checked)?.value || "ES";
+  renderResults(resultsFromQuery(q, mode));
+});
+document.getElementById("btnGen")?.addEventListener("click", ()=>{
+  const es= (document.getElementById("newEs")?.value||"").trim(); if(!es){ alert("Escribe Español."); return; }
+  document.getElementById("newSim").value = ensureUniqueSim(synth(es), es); // propuesta previa
+});
+document.getElementById("btnCreate")?.addEventListener("click", ()=>{
+  const $newEs=document.getElementById("newEs"); const $newSim=document.getElementById("newSim");
+  if(!$newEs||!$newSim){ return; }
+  const es=($newEs.value||"").trim(); let sim=($newSim.value||"").trim();
+  if(!es){ alert("Debes escribir la palabra en Español."); return; }
+  if(!sim){ sim=ensureUniqueSim(synth(es), es); }
+  const kEs=normEs(es), kSim=normSim(sim);
+  const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==sim){ delete USER.sim2es[normSim(prevSim)]; }
+  const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==es){ delete USER.es2sim[normEs(prevEs)]; }
+  USER.es2sim[kEs]=sim; USER.sim2es[kSim]=es;
+  HISTORY=[...HISTORY,{es,sim,t:new Date().toISOString()}].slice(-10);
+  saveUser(USER); saveHistory(HISTORY);
+  $newEs.value=""; $newSim.value="";
+  renderResults([{scope:"USER", es, sim}]); refreshMeta();
+});
+
+/* ===================== SYNC ===================== */
 function updateHostIndicators(){
-  // estado visual: probar HEAD/GET rápido para marcar “OK” o “sin respuesta”
   const setTag = (tag, ok) => {
     $hostState.textContent = tag;
     $hostChip.classList.toggle("ok", ok===true);
     $hostChip.classList.toggle("warn", ok===false);
   };
-  // pequeño ping sin bloquear
-  fetch(BACKEND_URL, { method:"HEAD", mode:"cors", cache:"no-store" })
-    .then(r => setTag(r.ok ? "OK" : "Sin respuesta", r.ok))
-    .catch(() => setTag("Sin respuesta", false));
+  fetch(BACKEND_URL, { method:"GET", mode:"cors", cache:"no-store" })
+    .then(r => r.ok ? r.json().then(()=>setTag("OK",true)) : setTag("Sin respuesta",false))
+    .catch(()=> setTag("Sin respuesta",false));
 }
 function endpoint(){ return BACKEND_URL; }
 function schedulePushToHost(){ clearTimeout(pushTimer); pushTimer=setTimeout(pushToHost, 600); }
@@ -341,6 +552,7 @@ async function pushToHost(){
     if(!r.ok) throw new Error(r.status);
     lastPushOk=true; dirtySinceLastPush=false;
   }catch(e){ lastPushOk=false; }
+  updateHostIndicators();
 }
 async function pullFromHost(){
   if(pulling) return; pulling=true;
@@ -357,7 +569,7 @@ async function pullFromHost(){
       lastPushOk=true; dirtySinceLastPush=false;
     }
   }catch(e){ lastPushOk=false; }
-  finally{ pulling=false; refreshMeta(); }
+  finally{ pulling=false; updateHostIndicators(); refreshMeta(); }
 }
 function flushViaBeacon(){ if(!dirtySinceLastPush) return;
   try{ const payload=JSON.stringify({ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY, flush:true });
@@ -368,68 +580,25 @@ window.addEventListener("pagehide", flushViaBeacon);
 document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") flushViaBeacon(); });
 window.addEventListener("beforeunload", flushViaBeacon);
 
-/* ===================== EDITOR ===================== */
-function resultsFromQuery(q, mode){ q=(q||"").trim().toLowerCase(); const items=[]; if(!q) return items;
-  if(mode==="ES"){ for(const [es,sim] of Object.entries(USER.es2sim||{})){ if(es.includes(q)) items.push({scope:"USER", es, sim}); }
-    for(const [key, sim] of CORE_ES2SIM.entries()){ if(key.includes(q)){ const es=key; if(!(USER.es2sim && USER.es2sim[esch])) items.push({scope:"CORE", es, sim}); } }
-  }else{
-    for(const [simKey, es] of Object.entries(USER.sim2es||{})){ if(simKey.includes(q)) items.push({scope:"USER", es, sim:simKey}); }
-    for(const [simKey, es] of CORE_SIM2ES.entries()){ if(simKey.includes(q)){ if(!(USER.sim2es && USER.sim2es[simKey])) items.push({scope:"CORE", es, sim:simKey}); } }
-  }
-  return items.slice(0,100);
-}
-function renderResults(list){
-  const $results=document.getElementById("results");
-  const $searchInfo=document.getElementById("searchInfo");
-  if(!$results) return; $results.innerHTML="";
-  if($searchInfo) $searchInfo.innerHTML = 'Edita solo pares de <b>Usuario</b>. CORE es de solo lectura.';
-  if(!list||!list.length){ $results.innerHTML=`<div class="small muted">Sin resultados.</div>`; return; }
-  for(const item of list){
-    const div=document.createElement("div"); div.className="item"; const isCore=item.scope==="CORE"; const locked=isCore ? true : false;
-    const esId="es_"+Math.random().toString(36).slice(2), simId="sim_"+Math.random().toString(36).slice(2);
-    div.innerHTML=`<div class="row2">
-        <input id="${esId}" value="${item.es}" ${isCore?'disabled':''} title="${isCore?'CORE (solo lectura)':'Español'}"/>
-        <input id="${simId}" value="${item.sim}" ${locked?'disabled':''} title="${locked?'Bloqueado':'Simlish'}"/>
-        <button class="btn" ${locked?'disabled':''} data-action="save">Guardar</button>
-      </div>
-      <small>${isCore? 'CORE · No editable. Crea una sobreescritura en Usuario si quieres cambiarlo.' : 'Usuario · Editable'}</small>`;
-    div.querySelector('[data-action="save"]')?.addEventListener('click', ()=>{
-      const esVal=document.getElementById(esId).value.trim(); let simVal=document.getElementById(simId).value.trim();
-      if(!esVal){ alert("Falta Español."); return; } if(!simVal){ simVal=synth(esVal); }
-      simVal=ensureUniqueSim(simVal, esVal);
-      if(CUSTOM_SIM_SET.has(normSim(simVal)) && normEs(DATA.vocabulario.custom[simVal])!==normEs(esVal)){ alert("Esa forma Simlish está protegida en CORE/custom. Elige otra."); return; }
-      const kEs=normEs(esVal), kSim=normSim(simVal);
-      const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==simVal){ delete USER.sim2es[normSim(prevSim)]; }
-      const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==esVal){ delete USER.es2sim[normEs(prevEs)]; }
-      USER.es2sim[kEs]=simVal; USER.sim2es[kSim]=esVal; HISTORY=[...HISTORY,{es:esVal,sim:simVal,t:new Date().toISOString()}].slice(-10);
-      saveUser(USER); saveHistory(HISTORY); renderResults([{scope:"USER", es:esVal, sim:simVal}]); refreshMeta();
-    });
-    $results.appendChild(div);
-  }
-}
-// Bind de buscador/creación solo si existen (por si quitaste la sección en tu HTML)
-document.getElementById("btnSearch")?.addEventListener("click", ()=>{
-  const q=(document.getElementById("searchQuery")?.value)||"";
-  const mode=Array.from(document.querySelectorAll('input[name="mode"]')||[]).find(r=>r.checked)?.value || "ES";
-  renderResults(resultsFromQuery(q, mode));
-});
-document.getElementById("btnCreate")?.addEventListener("click", ()=>{
-  const $newEs=document.getElementById("newEs"); const $newSim=document.getElementById("newSim");
-  if(!$newEs||!$newSim){ return; }
-  const es=($newEs.value||"").trim(); let sim=($newSim.value||"").trim(); if(!es){ alert("Debes escribir la palabra en Español."); return; } if(!sim){ sim=synth(es); } sim=ensureUniqueSim(sim, es);
-  if(CUSTOM_SIM_SET.has(normSim(sim)) && normEs(DATA.vocabulario.custom[sim])!==normEs(es)){ alert("Esa forma Simlish está protegida en CORE/custom. Elige otra."); return; }
-  const kEs=normEs(es), kSim=normSim(sim); const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==sim){ delete USER.sim2es[normSim(prevSim)]; }
-  const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==es){ delete USER.es2sim[normEs(prevEs)]; }
-  USER.es2sim[kEs]=sim; USER.sim2es[kSim]=es; HISTORY=[...HISTORY,{es,sim,t:new Date().toISOString()}].slice(-10); saveUser(USER); saveHistory(HISTORY);
-  $newEs.value=""; $newSim.value=""; renderResults([{scope:"USER", es, sim}]); refreshMeta();
-});
-
 /* ===================== TRADUCIR ===================== */
-function doTranslate(){ lastLearnedCount=0; const inputRaw=($in.value||"").trim(); if(!inputRaw){ $out.textContent="--"; refreshMeta(); return; }
-  let resultText=""; if(CURRENT_DIR===DIR.ES2SIM){ const res=translateES2SIM(inputRaw); resultText=res.text; lastLearnedCount=res.learnedFromGen||0; }
-  else { const res=translateSIM2ES(inputRaw); resultText=res.text; } $out.textContent=(resultText||"--"); refreshMeta(); }
+function doTranslate(){
+  lastLearnedCount=0;
+  const inputRaw=($in.value||"").trim();
+  if(!inputRaw){ $out.textContent="--"; refreshMeta(); return; }
 
-/* ===================== INICIO ===================== */
+  let resultText="";
+  if(CURRENT_DIR===DIR.ES2SIM){
+    const res=translateES2SIM(inputRaw);
+    resultText=res.text; lastLearnedCount=res.learnedFromGen||0;
+  }else{
+    const res=translateSIM2ES(inputRaw);
+    resultText=res.text;
+  }
+  $out.textContent=(resultText||"--");
+  refreshMeta();
+}
+
+/* ===================== INIT ===================== */
 function init(){ setDir(DIR.ES2SIM); pullFromHost(); refreshMeta(); }
 init();
 </script>
