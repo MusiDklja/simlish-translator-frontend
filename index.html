@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Simlish Translator · ES ⇄ SIM · Core v3.1</title>
 <meta name="description" content="Traductor bidireccional Español ⇄ Simlish con aprendizaje y sincronización estricta a backend.">
-<!-- CSP permisiva para frontends estáticos -->
+<!-- CSP enfocada: solo conecta al backend forzado y a self -->
 <meta http-equiv="Content-Security-Policy"
   content="default-src 'self';
-           connect-src 'self' https: data: blob:;
+           connect-src 'self' https://simlish-translator-backend.onrender.com;
            img-src 'self' https: data:;
            script-src 'self' 'unsafe-inline';
            style-src  'self' 'unsafe-inline';
@@ -40,20 +40,12 @@
   .state{display:flex;gap:8px;flex-wrap:wrap}
   .ok{color:var(--accent-strong)} .warn{color:var(--accent-warn)}
   .dirbtn{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;width:auto;min-width:180px}
-  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#071b20;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 6px}
+  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#071b20;border:1px solid #2a2f40;border-bottom-width:2px;border-radius:6px;padding:1px 6px}
   details summary{cursor:pointer}
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   a{color:var(--tiktok);text-decoration:none;font-weight:600}
   a:hover{text-decoration:underline}
-  /* Admin */
-  .admin-locked{display:grid;gap:10px;grid-template-columns:1fr auto;align-items:center;margin-top:16px}
-  .admin-panel{display:none;margin-top:12px}
-  .admin-panel.show{display:block}
-  .admin-grid{display:grid;gap:12px}
-  .kv{display:grid;grid-template-columns:140px 1fr;gap:8px;align-items:center}
-  .guard{border:1px dashed var(--line);padding:12px;border-radius:12px;background:#071b20;margin-bottom:12px}
-  .banner{margin-top:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#071b20}
-  .flex{display:flex;gap:8px;flex-wrap:wrap}
+  /* Listados */
   .list{display:grid;gap:8px;margin-top:8px}
   .item{display:grid;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#06181e}
   .item .row2{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}
@@ -77,11 +69,11 @@
           <button id="translate" class="btn">Traducir</button>
           <button id="clear" class="btn sec" title="Borrar texto">Limpiar</button>
         </div>
-        <p class="muted small">Aprendizaje estricto: solo se guarda si hay <span class="kbd">BACKEND_URL</span> configurado (Admin).</p>
+        <p class="muted small">Aprendizaje estricto: sincroniza y guarda automáticamente en el backend oficial.</p>
         <div class="toolbar">
           <button id="exportBtn" class="btn sec" title="Exportar vocab de usuario">Exportar vocab</button>
         </div>
-        <div id="strictBanner" class="banner small muted" style="display:none"></div>
+        <div id="strictBanner" class="small muted" style="display:none"></div>
       </div>
 
       <div class="card">
@@ -98,7 +90,7 @@
           <span class="chip">Aprendidos (últ. op.): <b id="stateLearnVal">0</b></span>
           <span class="chip" id="confBadge">Conflictos: <b id="confCount">0</b></span>
           <span class="chip">Lex: <b id="metaLex">-</b></span>
-          <span class="chip" id="hostChip" title="Estado de sincronización con host">Host: <b id="hostState">Sin URL</b></span>
+          <span class="chip" id="hostChip" title="Estado de sincronización con host">Host: <b id="hostState">Listo</b></span>
         </div>
       </div>
     </section>
@@ -117,70 +109,7 @@
       </p>
     </section>
 
-    <!-- Admin -->
-    <section class="card">
-      <h3 style="margin-top:0">Herramientas avanzadas (solo admin)</h3>
-      <div class="admin-locked">
-        <input id="adminPass" type="password" placeholder="Contraseña" aria-label="Contraseña"/>
-        <button id="adminUnlock" class="btn" style="width:auto">Desbloquear</button>
-      </div>
-
-      <div id="adminPanel" class="admin-panel">
-        <div class="admin-grid">
-          <!-- Configurar backend -->
-          <div class="guard">
-            <h4 style="margin:.2rem 0">Configurar backend</h4>
-            <div class="kv">
-              <span>BACKEND_URL:</span>
-              <input id="backendUrl" type="url" placeholder="https://tu-endpoint.com/"/>
-            </div>
-            <div class="kv">
-              <span></span>
-              <button id="beginUpdateBackend" class="btn sec" style="width:auto">Actualizar backend…</button>
-            </div>
-            <!-- Confirmación en dos pasos -->
-            <div id="backendConfirm" style="display:none; margin-top:10px">
-              <p class="small muted" style="margin:0 0 8px">¿Estás segura/o de cambiar el backend? Esto afectará la sincronización automática.</p>
-              <div class="kv">
-                <span>Contraseña:</span>
-                <input id="backendPassConfirm" type="password" placeholder="Reingresa contraseña"/>
-              </div>
-              <div class="row" style="margin-top:10px">
-                <button id="confirmBackendYes" class="btn">Sí, actualizar</button>
-                <button id="confirmBackendNo" class="btn sec">No, cancelar</button>
-              </div>
-            </div>
-            <p id="hostStatus" class="small muted" style="margin-top:10px">Host: sin URL configurada.</p>
-          </div>
-
-          <!-- Buscador/Editor de pares -->
-          <div class="guard">
-            <h4 style="margin:.2rem 0">Buscador / Editor de pares (ES ⇄ SIM)</h4>
-            <div class="flex">
-              <label class="chip"><input type="radio" name="mode" value="ES" checked style="margin-right:8px">Buscar por Español</label>
-              <label class="chip"><input type="radio" name="mode" value="SIM" style="margin-right:8px">Buscar por Simlish</label>
-            </div>
-            <div class="row" style="margin-top:8px">
-              <input id="searchQuery" placeholder="Escribe palabra a buscar…"/>
-              <button id="btnSearch" class="btn sec">Buscar</button>
-            </div>
-            <div id="searchInfo" class="small muted" style="margin-top:6px">Edita solo pares de <b>Usuario</b>. CORE es de solo lectura.</div>
-            <div id="results" class="list"></div>
-
-            <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
-            <h4 style="margin:.2rem 0">Crear nuevo par</h4>
-            <div class="row">
-              <input id="newEs" placeholder="Español (obligatorio)"/>
-              <input id="newSim" placeholder="Simlish (opcional: si lo dejas vacío se genera)"/>
-            </div>
-            <div class="row" style="margin-top:8px;grid-template-columns:auto 1fr">
-              <button id="btnCreate" class="btn">Crear y guardar</button>
-              <span class="small muted">Pasa por anti-colisión automáticamente.</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+    <!-- ADMIN ELIMINADO: no hay opciones para cambiar backend -->
   </main>
 
   <footer style="text-align:center;padding:16px;font-size:.85rem;color:var(--muted);border-top:1px solid var(--line);margin-top:24px">
@@ -192,24 +121,19 @@
 <script>
 /* ===================== CONFIG + HELPERS ===================== */
 const CORE_VERSION = "3.1";
-const STRICT_MODE = true; // sin backend no se aprende ni edita
+const STRICT_MODE = true; // sigue en estricto (pero siempre hay backend)
 const KEY_USER = `simlishLexiconUser:${CORE_VERSION}`;
 const KEY_HISTORY = `simlishLexiconHistory:${CORE_VERSION}`;
-const KEY_BACKEND = `simlishBackendUrl:${CORE_VERSION}`;
-const KEY_BACKEND_PROXY = `simlishBackendProxy:${CORE_VERSION}`;
 const DIR = { ES2SIM:"ES2SIM", SIM2ES:"SIM2ES" };
 let CURRENT_DIR = DIR.ES2SIM;
 let lastLearnedCount = 0;
 
-/* Sync */
-let BACKEND_URL = "";
-let USE_PROXY = false;
+/* Sync — backend FORZADO */
+const BACKEND_URL = "https://simlish-translator-backend.onrender.com/"; // << FORZADO
 let pushTimer = null;
 let pulling = false;
 let lastPushOk = null;
 let dirtySinceLastPush = false;
-
-const PROXY = "https://cors.isomorphic-git.org/";
 
 const deacc = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const normEs = s => deacc(String(s||"").toLowerCase()).trim();
@@ -220,11 +144,7 @@ function loadUser(){ try{ return JSON.parse(localStorage.getItem(KEY_USER)||"") 
 function saveUser(store){ try{ localStorage.setItem(KEY_USER, JSON.stringify(store)); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
 function loadHistory(){ try{ return JSON.parse(localStorage.getItem(KEY_HISTORY)||"[]"); }catch{ return []; } }
 function saveHistory(list){ try{ localStorage.setItem(KEY_HISTORY, JSON.stringify(list.slice(-10))); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
-function loadBackendUrl(){ try{ return localStorage.getItem(KEY_BACKEND) || ""; }catch{ return ""; } }
-function saveBackendUrl(u){ try{ localStorage.setItem(KEY_BACKEND, u||""); }catch{} BACKEND_URL = u||""; updateHostIndicators(); }
-function loadProxyFlag(){ try{ return localStorage.getItem(KEY_BACKEND_PROXY)==="1"; }catch{ return false; } }
-function saveProxyFlag(f){ try{ localStorage.setItem(KEY_BACKEND_PROXY, f?"1":"0"); }catch{} USE_PROXY = !!f; updateHostIndicators(); }
-function canLearn(){ return STRICT_MODE ? Boolean(BACKEND_URL) : true; }
+function canLearn(){ return true; } // siempre verdadero porque el backend está forzado
 
 let USER = loadUser();
 let HISTORY = loadHistory();
@@ -359,27 +279,6 @@ const $confBadge=document.getElementById("confBadge"), $confCount=document.getEl
 const $hostChip=document.getElementById("hostChip"), $hostState=document.getElementById("hostState");
 const $strictBanner=document.getElementById("strictBanner");
 
-/* Admin */
-const $adminPass=document.getElementById("adminPass");
-const $adminUnlock=document.getElementById("adminUnlock");
-const $adminPanel=document.getElementById("adminPanel");
-const $backendUrl=document.getElementById("backendUrl");
-const $beginUpdateBackend=document.getElementById("beginUpdateBackend");
-const $backendConfirm=document.getElementById("backendConfirm");
-const $backendPassConfirm=document.getElementById("backendPassConfirm");
-const $confirmBackendYes=document.getElementById("confirmBackendYes");
-const $confirmBackendNo=document.getElementById("confirmBackendNo");
-const $hostStatus=document.getElementById("hostStatus");
-
-/* Editor */
-const $btnSearch=document.getElementById("btnSearch");
-const $searchQuery=document.getElementById("searchQuery");
-const $results=document.getElementById("results");
-const $searchInfo=document.getElementById("searchInfo");
-const $newEs=document.getElementById("newEs");
-const $newSim=document.getElementById("newSim");
-const $btnCreate=document.getElementById("btnCreate");
-
 /* ===================== UI helpers ===================== */
 function setDir(d){ CURRENT_DIR=d; const lbl=d===DIR.ES2SIM?"ES → SIM":"SIM → ES"; $dirLabel.textContent=lbl; if($stateDirVal) $stateDirVal.textContent=lbl.replace(" ",""); }
 $toggleDir.addEventListener("click", ()=> setDir(CURRENT_DIR===DIR.ES2SIM?DIR.SIM2ES:DIR.ES2SIM));
@@ -392,7 +291,7 @@ function refreshMeta(){
   if($metaLex) $metaLex.textContent = `${totalCore} + ${userES}↑`;
   if($stateLearnVal) $stateLearnVal.textContent = String(lastLearnedCount||0);
 
-  // Renderizar historial (FIX)
+  // Historial (últimos 10)
   if($history){
     if(!HISTORY || !HISTORY.length){
       $history.textContent = "--";
@@ -407,11 +306,9 @@ function refreshMeta(){
   const confs=scanConflicts(); if($confCount) $confCount.textContent=String(confs.length);
   if($confBadge){ $confBadge.classList.toggle("warn", confs.length>0); $confBadge.classList.toggle("ok", confs.length===0); }
 
-  const can=canLearn();
-  if($strictBanner){
-    $strictBanner.style.display = can ? "none" : "block";
-    if(!can) $strictBanner.innerHTML="🔒 Modo estricto: <b>sin backend</b> no se guardará lo aprendido ni se podrán editar pares. Configura el backend en Admin.";
-  }
+  // En modo forzado, nunca mostramos el banner de “sin backend”
+  if($strictBanner){ $strictBanner.style.display="none"; }
+
   updateHostIndicators();
 }
 
@@ -422,58 +319,31 @@ catch{ const ta=document.createElement("textarea"); ta.value=txt; document.body.
 $demo.addEventListener("click", ()=>{ if(CURRENT_DIR===DIR.ES2SIM){ $in.value="Ayer cociné sopa caliente, hoy la estoy sirviendo y mañana la voy a compartir."; } else { $in.value="Su laa, meeba shoba dra-brazu supa brasha. Delvu da supa wit spuvu."; } doTranslate(); });
 $exportBtn.addEventListener("click", ()=>{ const data=localStorage.getItem(KEY_USER) || "{}"; const blob=new Blob([data], {type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`simlish-vocab-user-v${CORE_VERSION}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); });
 
-/* ===================== ADMIN: desbloqueo + backend ===================== */
-$adminUnlock.addEventListener("click", ()=>{ const ok = ($adminPass.value||"")==="724692"; if(!ok){ alert("Contraseña incorrecta."); return; } $adminPanel.classList.add("show"); $adminPass.value=""; $backendUrl.value=loadBackendUrl(); USE_PROXY=loadProxyFlag(); updateHostIndicators(); });
-$beginUpdateBackend.addEventListener("click", ()=>{ $backendConfirm.style.display="block"; $backendPassConfirm.value=""; $backendPassConfirm.focus(); });
-$confirmBackendNo.addEventListener("click", ()=>{ $backendConfirm.style.display="none"; });
-
-function wrap(u){ return USE_PROXY ? (PROXY + u) : u; }
-async function tryFetch(url){ try{ const r=await fetch(url,{method:"GET",mode:"cors",cache:"no-store",redirect:"follow",credentials:"omit"}); if(r.ok){ await r.clone().json().catch(()=>{}); return true; } }catch(_){ } return false; }
-async function testBackendURL(urlRaw){
-  const clean=(urlRaw||"").trim();
-  const base = clean.endsWith("/") ? clean : (clean + "/");
-  if(await tryFetch(base) || await tryFetch(base.slice(0,-1))) return { ok:true, url:base, viaProxy:false };
-  await new Promise(res=>setTimeout(res,1500));
-  if(await tryFetch(base) || await tryFetch(base.slice(0,-1))) return { ok:true, url:base, viaProxy:false };
-  if(await tryFetch(PROXY+base) || await tryFetch(PROXY+base.slice(0,-1))) return { ok:true, url:base, viaProxy:true };
-  return { ok:false, url:base, viaProxy:false };
-}
-
-$confirmBackendYes.addEventListener("click", async ()=>{
-  const pass=($backendPassConfirm.value||""); if(pass!=="724692"){ alert("Contraseña incorrecta."); return; }
-  let url=($backendUrl.value||"").trim(); if(!/^https?:\/\//i.test(url)){ alert("La URL debe comenzar con https://"); return; }
-  const test=await testBackendURL(url);
-  if(!test.ok){
-    saveBackendUrl(url); saveProxyFlag(false); lastPushOk=false; $hostStatus.textContent=`Host: ${url} (sin respuesta; revisa URL)`; updateHostIndicators();
-    alert("Se guardó la URL, pero el backend no respondió aun con reintento y proxy. Revisa la URL y vuelve a probar.");
-    return;
-  }
-  saveBackendUrl(test.url); saveProxyFlag(test.viaProxy); lastPushOk=true; $hostStatus.textContent=`Host: ${test.url} (OK${test.viaProxy?" via proxy":""})`;
-  updateHostIndicators(); await pullFromHost(); $backendConfirm.style.display="none";
-});
-
-/* ===================== SYNC ===================== */
+/* ===================== SYNC (FORZADO) ===================== */
 function updateHostIndicators(){
-  BACKEND_URL=loadBackendUrl(); USE_PROXY=loadProxyFlag();
-  if(!BACKEND_URL){ $hostState.textContent="Sin URL"; $hostChip.classList.remove("ok","warn"); if($hostStatus) $hostStatus.textContent="Host: sin URL configurada."; return; }
-  const tag = (lastPushOk===true) ? ("OK"+(USE_PROXY?" (proxy)":"")) : (lastPushOk===false ? "Error" : "Listo");
-  $hostState.textContent = tag; $hostChip.classList.toggle("ok", lastPushOk===true); $hostChip.classList.toggle("warn", lastPushOk===false);
-  if($hostStatus){ $hostStatus.textContent=`Host: ${BACKEND_URL} (${tag})`; }
+  // estado visual: probar HEAD/GET rápido para marcar “OK” o “sin respuesta”
+  const setTag = (tag, ok) => {
+    $hostState.textContent = tag;
+    $hostChip.classList.toggle("ok", ok===true);
+    $hostChip.classList.toggle("warn", ok===false);
+  };
+  // pequeño ping sin bloquear
+  fetch(BACKEND_URL, { method:"HEAD", mode:"cors", cache:"no-store" })
+    .then(r => setTag(r.ok ? "OK" : "Sin respuesta", r.ok))
+    .catch(() => setTag("Sin respuesta", false));
 }
-function endpoint(){ return wrap(BACKEND_URL); }
-function schedulePushToHost(){ if(!BACKEND_URL) return; clearTimeout(pushTimer); pushTimer=setTimeout(pushToHost, 600); }
+function endpoint(){ return BACKEND_URL; }
+function schedulePushToHost(){ clearTimeout(pushTimer); pushTimer=setTimeout(pushToHost, 600); }
 async function pushToHost(){
-  if(!BACKEND_URL) return;
   try{
     const payload={ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY };
     const r=await fetch(endpoint(),{ method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload), mode:"cors", credentials:"omit" });
     if(!r.ok) throw new Error(r.status);
     lastPushOk=true; dirtySinceLastPush=false;
   }catch(e){ lastPushOk=false; }
-  updateHostIndicators();
 }
 async function pullFromHost(){
-  if(!BACKEND_URL || pulling) return; pulling=true;
+  if(pulling) return; pulling=true;
   try{
     const r=await fetch(endpoint(),{method:"GET",mode:"cors",credentials:"omit"});
     if(!r.ok) throw new Error(r.status);
@@ -487,9 +357,9 @@ async function pullFromHost(){
       lastPushOk=true; dirtySinceLastPush=false;
     }
   }catch(e){ lastPushOk=false; }
-  finally{ pulling=false; updateHostIndicators(); renderResults([]); refreshMeta(); } /* FIX: refrescar UI */
+  finally{ pulling=false; refreshMeta(); }
 }
-function flushViaBeacon(){ if(!BACKEND_URL || !dirtySinceLastPush) return;
+function flushViaBeacon(){ if(!dirtySinceLastPush) return;
   try{ const payload=JSON.stringify({ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY, flush:true });
     const blob=new Blob([payload],{type:"application/json"}); navigator.sendBeacon(endpoint(), blob); lastPushOk=true; dirtySinceLastPush=false;
   }catch(_){}
@@ -501,16 +371,21 @@ window.addEventListener("beforeunload", flushViaBeacon);
 /* ===================== EDITOR ===================== */
 function resultsFromQuery(q, mode){ q=(q||"").trim().toLowerCase(); const items=[]; if(!q) return items;
   if(mode==="ES"){ for(const [es,sim] of Object.entries(USER.es2sim||{})){ if(es.includes(q)) items.push({scope:"USER", es, sim}); }
-    for(const [key, sim] of CORE_ES2SIM.entries()){ if(key.includes(q)){ const es=key; if(!(USER.es2sim && USER.es2sim[es])) items.push({scope:"CORE", es, sim}); } }
+    for(const [key, sim] of CORE_ES2SIM.entries()){ if(key.includes(q)){ const es=key; if(!(USER.es2sim && USER.es2sim[esch])) items.push({scope:"CORE", es, sim}); } }
   }else{
     for(const [simKey, es] of Object.entries(USER.sim2es||{})){ if(simKey.includes(q)) items.push({scope:"USER", es, sim:simKey}); }
     for(const [simKey, es] of CORE_SIM2ES.entries()){ if(simKey.includes(q)){ if(!(USER.sim2es && USER.sim2es[simKey])) items.push({scope:"CORE", es, sim:simKey}); } }
   }
   return items.slice(0,100);
 }
-function renderResults(list){ $results.innerHTML=""; if(!list||!list.length){ $results.innerHTML=`<div class="small muted">Sin resultados.</div>`; return; }
+function renderResults(list){
+  const $results=document.getElementById("results");
+  const $searchInfo=document.getElementById("searchInfo");
+  if(!$results) return; $results.innerHTML="";
+  if($searchInfo) $searchInfo.innerHTML = 'Edita solo pares de <b>Usuario</b>. CORE es de solo lectura.';
+  if(!list||!list.length){ $results.innerHTML=`<div class="small muted">Sin resultados.</div>`; return; }
   for(const item of list){
-    const div=document.createElement("div"); div.className="item"; const isCore=item.scope==="CORE"; const locked=isCore || !canLearn();
+    const div=document.createElement("div"); div.className="item"; const isCore=item.scope==="CORE"; const locked=isCore ? true : false;
     const esId="es_"+Math.random().toString(36).slice(2), simId="sim_"+Math.random().toString(36).slice(2);
     div.innerHTML=`<div class="row2">
         <input id="${esId}" value="${item.es}" ${isCore?'disabled':''} title="${isCore?'CORE (solo lectura)':'Español'}"/>
@@ -519,7 +394,6 @@ function renderResults(list){ $results.innerHTML=""; if(!list||!list.length){ $r
       </div>
       <small>${isCore? 'CORE · No editable. Crea una sobreescritura en Usuario si quieres cambiarlo.' : 'Usuario · Editable'}</small>`;
     div.querySelector('[data-action="save"]')?.addEventListener('click', ()=>{
-      if(!canLearn()){ alert("Modo estricto: configura BACKEND_URL para guardar."); return; }
       const esVal=document.getElementById(esId).value.trim(); let simVal=document.getElementById(simId).value.trim();
       if(!esVal){ alert("Falta Español."); return; } if(!simVal){ simVal=synth(esVal); }
       simVal=ensureUniqueSim(simVal, esVal);
@@ -533,21 +407,30 @@ function renderResults(list){ $results.innerHTML=""; if(!list||!list.length){ $r
     $results.appendChild(div);
   }
 }
-$btnSearch.addEventListener("click", ()=>{ const q=$searchQuery.value||""; const mode=Array.from(document.querySelectorAll('input[name="mode"]')).find(r=>r.checked)?.value || "ES"; $searchInfo.innerHTML = canLearn() ? 'Edita solo pares de <b>Usuario</b>. CORE es de solo lectura.' : '🔒 Modo estricto: <b>sin backend</b> no podrás guardar cambios.'; renderResults(resultsFromQuery(q, mode)); });
-$btnCreate.addEventListener("click", ()=>{ if(!canLearn()){ alert("Modo estricto: configura BACKEND_URL para guardar."); return; } const es=($newEs.value||"").trim(); let sim=($newSim.value||"").trim(); if(!es){ alert("Debes escribir la palabra en Español."); return; } if(!sim){ sim=synth(es); } sim=ensureUniqueSim(sim, es);
+// Bind de buscador/creación solo si existen (por si quitaste la sección en tu HTML)
+document.getElementById("btnSearch")?.addEventListener("click", ()=>{
+  const q=(document.getElementById("searchQuery")?.value)||"";
+  const mode=Array.from(document.querySelectorAll('input[name="mode"]')||[]).find(r=>r.checked)?.value || "ES";
+  renderResults(resultsFromQuery(q, mode));
+});
+document.getElementById("btnCreate")?.addEventListener("click", ()=>{
+  const $newEs=document.getElementById("newEs"); const $newSim=document.getElementById("newSim");
+  if(!$newEs||!$newSim){ return; }
+  const es=($newEs.value||"").trim(); let sim=($newSim.value||"").trim(); if(!es){ alert("Debes escribir la palabra en Español."); return; } if(!sim){ sim=synth(es); } sim=ensureUniqueSim(sim, es);
   if(CUSTOM_SIM_SET.has(normSim(sim)) && normEs(DATA.vocabulario.custom[sim])!==normEs(es)){ alert("Esa forma Simlish está protegida en CORE/custom. Elige otra."); return; }
   const kEs=normEs(es), kSim=normSim(sim); const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==sim){ delete USER.sim2es[normSim(prevSim)]; }
   const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==es){ delete USER.es2sim[normEs(prevEs)]; }
   USER.es2sim[kEs]=sim; USER.sim2es[kSim]=es; HISTORY=[...HISTORY,{es,sim,t:new Date().toISOString()}].slice(-10); saveUser(USER); saveHistory(HISTORY);
-  $newEs.value=""; $newSim.value=""; renderResults([{scope:"USER", es, sim}]); refreshMeta(); });
+  $newEs.value=""; $newSim.value=""; renderResults([{scope:"USER", es, sim}]); refreshMeta();
+});
 
 /* ===================== TRADUCIR ===================== */
 function doTranslate(){ lastLearnedCount=0; const inputRaw=($in.value||"").trim(); if(!inputRaw){ $out.textContent="--"; refreshMeta(); return; }
-  let resultText=""; if(CURRENT_DIR===DIR.ES2SIM){ const res=translateES2SIM(inputRaw); resultText=res.text; lastLearnedCount=res.learnedFromGen||0; if(!canLearn() && res.text){ resultText += "\n\n[🔒 Nota] Modo estricto: sin backend configurado, no se guardó ningún par nuevo."; } }
+  let resultText=""; if(CURRENT_DIR===DIR.ES2SIM){ const res=translateES2SIM(inputRaw); resultText=res.text; lastLearnedCount=res.learnedFromGen||0; }
   else { const res=translateSIM2ES(inputRaw); resultText=res.text; } $out.textContent=(resultText||"--"); refreshMeta(); }
 
 /* ===================== INICIO ===================== */
-function init(){ setDir(DIR.ES2SIM); BACKEND_URL=loadBackendUrl(); USE_PROXY=loadProxyFlag(); if(BACKEND_URL) pullFromHost(); refreshMeta(); }
+function init(){ setDir(DIR.ES2SIM); pullFromHost(); refreshMeta(); }
 init();
 </script>
 </body>
