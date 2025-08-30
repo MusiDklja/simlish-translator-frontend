@@ -3,279 +3,265 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Simlish Translator · ES ⇄ SIM · Core v3.1 (ML-ready)</title>
-<meta name="description" content="Traductor bidireccional Español ⇄ Simlish con aprendizaje, admin, SimChat y respaldo.">
+<title>Simlish Translator · ES ⇄ SIM · Core v3.1</title>
+<meta name="description" content="Traductor bidireccional Español ⇄ Simlish con aprendizaje, editor y Sim Chat.">
+
+<!-- CSP: solo self y tu backend en Render -->
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'self';
+           connect-src 'self' https://simlish-translator-backend.onrender.com;
+           img-src 'self' https: data:;
+           script-src 'self' 'unsafe-inline';
+           style-src  'self' 'unsafe-inline';
+           base-uri 'self';
+           frame-ancestors 'self'">
+
 <style>
-  :root{ --bg:#06141a; --bg2:#071e24; --ink:#e6f7f4; --muted:#93c5c9; --line:#0f2e35;
-         --accent:#22d3a6; --accent-strong:#10b981; --accent-warn:#eab308; --danger:#ef4444; }
+  :root{ --bg:#06141a; --bg2:#071e24; --ink:#e6f7f4; --muted:#93c5c9; --line:#0f2e35; --accent:#22d3a6; --accent-strong:#10b981; --accent-warn:#eab308; --tiktok:#38bdf8; }
   *{box-sizing:border-box}
-  body{margin:0;background:#06141a;color:var(--ink);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif}
-  header{padding:16px 20px;border-bottom:1px solid var(--line);background:#071e24cc;backdrop-filter:blur(6px)}
-  h1{margin:0;font-size:1.2rem}
-  .wrap{max-width:1100px;margin:0 auto;padding:20px;display:grid;gap:16px}
+  html,body{height:100%}
+  body{ margin:0; background:radial-gradient(1200px 800px at 15% -10%, #0a2b2f 0%, transparent 50%), linear-gradient(180deg,#041017,#06141a 35%, #06141a 100%); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow-x:hidden; }
+  header{padding:20px 24px;border-bottom:1px solid var(--line);background:#06141acc;backdrop-filter:blur(6px)}
+  h1{margin:0;font-size:1.25rem;display:flex;gap:10px;align-items:center}
+  .pill{display:inline-block;background:var(--accent);color:#04201a;padding:2px 10px;border-radius:999px;font-weight:800;font-size:.8rem}
+  .wrap{padding:20px 24px 28px;display:grid;gap:16px;max-width:1100px;margin:0 auto}
   .grid{display:grid;gap:16px}
   @media(min-width:950px){.grid{grid-template-columns:1fr 1fr}}
-  .card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px}
-  label{display:block;margin-bottom:6px}
-  textarea,input,button{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#071b20;color:var(--ink)}
-  textarea{min-height:140px}
-  .btn{cursor:pointer;background:linear-gradient(180deg,var(--accent) 0%,var(--accent-strong) 100%);border:none;font-weight:800}
-  .btn.sec{background:#071b20;border:1px solid var(--line);font-weight:600}
-  .btn.danger{background:linear-gradient(180deg,#ef4444,#b91c1c);color:#fff}
-  .row{display:grid;gap:10px;grid-template-columns:1fr 1fr}
-  .row3{display:grid;gap:10px;grid-template-columns:1fr 1fr auto}
-  .out{min-height:140px;border:1px dashed var(--line);padding:10px;background:#06141a;white-space:pre-wrap}
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:16px}
+  label{display:block;margin-bottom:8px}
+  textarea,button,input,select{width:100%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#071b20;color:var(--ink)}
+  textarea{min-height:170px;resize:vertical}
+  .row{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+  .btn{cursor:pointer;transition:filter .15s ease, transform .05s ease;background:linear-gradient(180deg,var(--accent) 0%, var(--accent-strong) 100%);color:#052018;font-weight:800;border:none}
+  .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(1px)}
+  .btn.sec{background:#071b20;border:1px solid var(--line);color:var(--ink);font-weight:600}
+  .out{white-space:pre-wrap;min-height:170px;border-radius:12px;border:1px dashed var(--line);padding:10px;background:#06141a;word-break:break-word;overflow-wrap:anywhere}
+  .muted{color:var(--muted);font-size:.92rem}
+  .small{font-size:.85rem}
+  .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#071b20;padding:6px 10px;border-radius:999px}
   .state{display:flex;gap:8px;flex-wrap:wrap}
-  .chip{background:#071b20;border:1px solid var(--line);padding:6px 10px;border-radius:999px}
-  .link{color:#38bdf8;text-decoration:none}
-  .muted{color:var(--muted)} .small{font-size:.9rem}
-  /* Admin */
-  .secret{max-width:1100px;margin:0 auto;padding:0 20px 12px}
+  .ok{color:var(--accent-strong)} .warn{color:var(--accent-warn)}
+  .dirbtn{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;width:auto;min-width:180px}
+  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#071b20;border:1px solid #2a2f40;border-bottom-width:2px;border-radius:6px;padding:1px 6px}
+  details summary{cursor:pointer}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  a{color:var(--tiktok);text-decoration:none;font-weight:600}
+  a:hover{text-decoration:underline}
+
+  /* Admin discreto */
+  .secret{max-width:1100px;margin:0 auto;padding:0 24px 12px}
   .list{display:grid;gap:8px;margin-top:8px}
-  .item{display:grid;gap:8px;border:1px dashed var(--line);border-radius:10px;padding:10px;background:#06181e}
-  /* Popup */
-  #backupPopup{position:fixed;inset:0;display:none;place-items:center;background:#0008;z-index:1000}
-  #backupPopup .card{max-width:420px;text-align:center}
+  .item{display:grid;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#06181e}
+  .item .row2{display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px}
+  .item small{color:var(--muted)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chipOpt{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#071b20;padding:6px 10px;border-radius:999px}
+
   /* Sim Chat */
-  .chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
-  .chipbtn{padding:6px 12px;border-radius:999px;background:#071b20;border:1px solid var(--line);cursor:pointer}
-  .chipbtn.active{background:var(--accent);color:#041817;font-weight:800}
-  #needs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-  .need{padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:#071b20}
-  .g0{background:#3a0910} .g1{background:#4a0f12}
-  .g2{background:#5a1a14} .g3{background:#6a2616}
-  .g4{background:#7a3218} .g5{background:#5b5320}
-  .g6{background:#305a20} .g7{background:#23652b}
-  .g8{background:#1b7a3b} .g9{background:#109955}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .tab{padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:#071b20}
+  .tab.active{background:var(--accent);color:#04201a;font-weight:800}
+  .needs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+  .need{padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:#14262b}
+  .need[data-level="low"]{background:#402326}
+  .need[data-level="mid"]{background:#2a3a1e}
+  .need[data-level="high"]{background:#1c3a2b}
 </style>
 </head>
 <body>
-<header><h1>Simlish Translator · ES ⇄ SIM · Core v3.1 (ML-ready)</h1></header>
+  <header>
+    <h1>Simlish Translator <span class="pill">ES ⇄ SIM · Core v3.1</span></h1>
+  </header>
 
-<main class="wrap">
-  <section class="grid">
-    <div class="card">
-      <div class="row" style="grid-template-columns:1fr auto">
-        <label for="in">Entrada</label>
-        <button id="toggleDir" class="btn sec"><span id="dirLabel">ES → SIM</span></button>
+  <main class="wrap">
+    <!-- TRADUCTOR -->
+    <section class="grid">
+      <div class="card">
+        <div class="row" style="grid-template-columns:1fr auto">
+          <label for="in" style="margin:0;align-self:center">Entrada</label>
+          <button id="toggleDir" class="btn dirbtn" title="Cambiar dirección"><span id="dirLabel">ES → SIM</span></button>
+        </div>
+        <textarea id="in" placeholder="Escribe aquí."></textarea>
+        <div class="row" style="margin-top:12px">
+          <button id="translate" class="btn">Traducir</button>
+          <button id="clear" class="btn sec" title="Borrar texto">Limpiar</button>
+        </div>
+        <p class="muted small">Aprendizaje estricto: se guarda y sincroniza en el backend automáticamente.</p>
+        <div class="toolbar">
+          <button id="exportBtn" class="btn sec" title="Exportar vocab de usuario">Exportar .JSON</button>
+          <button id="conflictsBtn" class="btn sec" title="Ver conflictos">Ver conflictos</button>
+        </div>
+        <div id="strictBanner" class="small muted" style="display:none"></div>
       </div>
-      <textarea id="in" placeholder="Escribe aquí..."></textarea>
-      <div class="row" style="margin-top:10px">
-        <button id="translate" class="btn">Traducir</button>
-        <button id="clear" class="btn sec">Limpiar</button>
-      </div>
-      <p class="small muted">Aprendizaje estricto: se guarda y sincroniza en el backend automáticamente.</p>
-      <div class="state">
-        <span class="chip">Dirección: <b id="stateDirVal">ES→SIM</b></span>
-        <span class="chip">Aprendidos (últ. op.): <b id="stateLearnVal">0</b></span>
-        <span class="chip">Conflictos: <b id="confCount">0</b></span>
-        <span class="chip">Host: <b id="hostState">--</b></span>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <button id="btnExport" class="btn sec">Exportar .JSON</button>
-        <button id="btnConflicts" class="btn sec">Ver conflictos</button>
-      </div>
-    </div>
 
-    <div class="card">
-      <label for="out">Salida</label>
-      <div id="out" class="out">--</div>
-      <div class="row" style="margin-top:10px">
-        <button id="copy" class="btn">Copiar</button>
-        <button id="demo" class="btn sec">Ejemplo</button>
+      <div class="card">
+        <label for="out">Salida</label>
+        <div id="out" class="out" aria-live="polite">--</div>
+        <div class="row" style="margin-top:12px">
+          <button id="copy" class="btn">Copiar</button>
+          <button id="demo" class="btn sec" title="Ejemplo rápido">Ejemplo</button>
+        </div>
+        <div class="state" style="margin-top:12px">
+          <span class="chip">Modo: <b>Estricto</b></span>
+          <span class="chip">Dirección: <b id="stateDirVal">ES→SIM</b></span>
+          <span class="chip">Versión base: <b>3.1</b></span>
+          <span class="chip">Aprendidos (últ. op.): <b id="stateLearnVal">0</b></span>
+          <span class="chip" id="confBadge">Conflictos: <b id="confCount">0</b></span>
+          <span class="chip">Lex: <b id="metaLex">-</b></span>
+          <span class="chip" id="hostChip" title="Estado de sincronización con host">Host: <b id="hostState">Listo</b></span>
+        </div>
       </div>
-      <details style="margin-top:10px">
-        <summary><b>Historial (últimos 10 aprendidos)</b></summary>
-        <div id="history" class="small muted" style="margin-top:6px">--</div>
+    </section>
+
+    <!-- HISTORIAL + META -->
+    <section class="card">
+      <details open>
+        <summary><strong>Historial (últimos 10 aprendidos)</strong></summary>
+        <div id="history" class="small muted" style="margin-top:8px">--</div>
       </details>
-      <details style="margin-top:10px">
-        <summary><b>Gramática & Vocab cargados</b></summary>
+      <details style="margin-top:12px">
+        <summary><strong>Gramática & Vocab cargados</strong></summary>
         <div class="small muted" id="meta"></div>
       </details>
-    </div>
-  </section>
+      <p class="muted small" style="margin-top:10px">
+        Tiempos: prefijos <span class="kbd">dra-</span>/<span class="kbd">to-</span>, sufijos <span class="kbd">-nu</span>/<span class="kbd">-ru</span> con auxiliar <span class="kbd">shoba</span>.
+      </p>
+    </section>
 
-  <!-- Sim Chat -->
-  <section class="card">
-    <h2>Sim Chat</h2>
-    <div class="chips">
-      <div class="chipbtn active" data-pers="clasico">Clásico</div>
-      <div class="chipbtn" data-pers="tierno">Tierno</div>
-      <div class="chipbtn" data-pers="sabio">Sabio</div>
-      <div class="chipbtn" data-pers="payasin">Payasín</div>
-      <div class="chipbtn" data-pers="travieso">Travieso 🔒</div>
-    </div>
-    <div id="needs">
-      <div id="needH" class="need g6">Hambre</div>
-      <div id="needD" class="need g6">Diversión</div>
-      <div id="needI" class="need g6">Higiene</div>
-      <div id="needE" class="need g6">Energía</div>
-      <div id="needS" class="need g6">Social</div>
-      <div id="needV" class="need g6">Vejiga</div>
-    </div>
-    <textarea id="simIn" placeholder="Habla con tu Sim en ES o SIM..."></textarea>
-    <div class="row" style="margin-top:10px">
-      <button id="simSend" class="btn">Enviar</button>
-      <button id="simClear" class="btn sec">Limpiar</button>
-    </div>
-    <div id="simOut" class="out" style="margin-top:10px">--</div>
-  </section>
-</main>
+    <!-- SIM CHAT -->
+    <section class="card">
+      <h3 style="margin-top:0">Sim Chat</h3>
+      <div class="tabs" id="personaTabs">
+        <button class="tab active" data-p="clasico">Clásico</button>
+        <button class="tab" data-p="tierno">Tierno</button>
+        <button class="tab" data-p="sabio">Sabio</button>
+        <button class="tab" data-p="payasin">Payasín</button>
+        <button class="tab" data-p="travieso" title="Requiere clave generativa" disabled>Travieso 🔒</button>
+      </div>
+      <div class="needs" id="needsBar">
+        <span class="need" id="need-hambre"  data-level="mid">Hambre</span>
+        <span class="need" id="need-diversion" data-level="mid">Diversión</span>
+        <span class="need" id="need-higiene"  data-level="mid">Higiene</span>
+        <span class="need" id="need-energia"  data-level="mid">Energía</span>
+        <span class="need" id="need-social"  data-level="mid">Social</span>
+        <span class="need" id="need-vejiga"  data-level="mid">Vejiga</span>
+      </div>
+      <textarea id="chatIn" placeholder="Escribe en español o simlish…"></textarea>
+      <div class="row" style="margin-top:12px">
+        <button id="chatSend" class="btn">Enviar</button>
+        <button id="chatClear" class="btn sec">Limpiar</button>
+      </div>
+      <div id="chatOut" class="out" style="margin-top:12px">Sistema: (sin respuesta ML)</div>
+    </section>
 
-<!-- Panel admin discreto (sobre el footer) -->
-<div class="secret">
-  <div class="row" style="grid-template-columns:1fr auto">
-    <input id="secretPass" type="password" placeholder="••••••••" aria-label="Contraseña admin"/>
-    <button id="secretUnlock" class="btn" style="width:auto">Desbloquear admin</button>
-  </div>
-  <div id="secretPanel" class="card" style="display:none;margin-top:10px">
-    <h3>Panel administrador</h3>
+    <!-- ===== Panel secreto (sobre el footer) ===== -->
+    <div class="secret">
+      <div class="row" style="grid-template-columns:1fr auto">
+        <input id="secretPass" type="password" placeholder="" aria-label=""/>
+        <button id="secretUnlock" class="btn" style="width:auto">OK</button>
+      </div>
 
-    <div class="row" style="margin-bottom:8px">
-      <label class="small"><input type="radio" name="mode" value="ES" checked> Buscar por Español</label>
-      <label class="small"><input type="radio" name="mode" value="SIM"> Buscar por Simlish</label>
+      <div id="secretPanel" class="card" style="display:none;margin-top:10px">
+        <div class="chips" style="margin-bottom:8px">
+          <label class="chipOpt"><input type="radio" name="mode" value="ES" checked> ES</label>
+          <label class="chipOpt"><input type="radio" name="mode" value="SIM"> SIM</label>
+        </div>
+        <div class="row">
+          <input id="searchQuery" placeholder="buscar…"/>
+          <button id="btnSearch" class="btn sec">Buscar</button>
+        </div>
+        <div id="searchInfo" class="small muted" style="margin-top:6px">Edita solo pares de <b>Usuario</b>. CORE es de solo lectura.</div>
+        <div id="results" class="list"></div>
+
+        <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+
+        <div class="row">
+          <input id="newEs" placeholder="Español"/>
+          <input id="newSim" placeholder="(generado aquí)"/>
+        </div>
+        <div class="row" style="grid-template-columns:auto auto 1fr">
+          <button id="btnGen" class="btn sec">Generar</button>
+          <button id="btnCreate" class="btn">Guardar</button>
+          <span class="small muted"></span>
+        </div>
+      </div>
     </div>
-    <div class="row">
-      <input id="searchQuery" placeholder="Buscar…"/>
-      <button id="btnSearch" class="btn sec">Buscar</button>
-    </div>
-    <div id="searchInfo" class="small muted" style="margin-top:6px">Edita solo pares de <b>Usuario</b>. CORE es de solo lectura (puedes crear sobreescritura).</div>
-    <div id="results" class="list"></div>
+    <!-- ===== /Panel secreto ===== -->
 
-    <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+  </main>
 
-    <h4>Crear / Generar antes de guardar</h4>
-    <div class="row">
-      <input id="newEs" placeholder="Español"/>
-      <input id="newSim" placeholder="(generado aquí)"/>
-    </div>
-    <div class="row" style="grid-template-columns:auto auto 1fr">
-      <button id="btnGen" class="btn sec">Generar</button>
-      <button id="btnCreate" class="btn">Guardar</button>
-      <span class="small muted"></span>
-    </div>
-
-    <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
-
-    <div class="row">
-      <button id="btnNewTravieso" class="btn">Generar clave “Travieso”</button>
-      <button id="btnConflicts2" class="btn sec">Ver conflictos</button>
-    </div>
-    <div id="traviesoBox" class="small muted" style="margin-top:8px"></div>
-  </div>
-</div>
-
-<footer style="text-align:center;padding:14px;font-size:.9rem;color:var(--muted);border-top:1px solid var(--line);margin-top:16px">
-  ☆ Creado por <b style="color:var(--accent)">Musi Dklja</b> (2025)
-</footer>
-
-<!-- Popup de respaldo -->
-<div id="backupPopup">
-  <div class="card">
-    <p id="popupMsg">—</p>
-    <div class="row" style="margin-top:10px">
-      <button id="popupDownload" class="btn">Descargar JSON</button>
-      <button id="popupCancel" class="btn sec">Cancelar</button>
-    </div>
-  </div>
-</div>
+  <footer style="text-align:center;padding:16px;font-size:.85rem;color:var(--muted);border-top:1px solid var(--line);margin-top:24px">
+    <a href="https://www.tiktok.com/@musimiau?_t=ZM-8stssM0VX78&_r=1" target="_blank">@musimiau en TikTok🧡💜</a><br>
+    ☆ Creado por <b style="color:var(--accent)">&nbsp;Musi Dklja&nbsp;</b> (28 de Agosto del 2025)
+  </footer>
 
 <script>
-/* ===================== CONFIG BÁSICA ===================== */
-const DIR={ES2SIM:"ES2SIM",SIM2ES:"SIM2ES"}; let CURRENT_DIR=DIR.ES2SIM;
-const CORE_VERSION="3.1";
-const KEY_USER=`simlishLexiconUser:${CORE_VERSION}`;
-const KEY_HISTORY=`simlishLexiconHistory:${CORE_VERSION}`;
-let lastLearnedCount=0;
-let ADMIN_TOKEN=null; // se obtiene por /auth
+/* ===================== CONFIG + HELPERS ===================== */
+const CORE_VERSION = "3.1";
+const STRICT_MODE = true;
+const ADMIN_PASS = "1908924672";
+const KEY_USER = `simlishLexiconUser:${CORE_VERSION}`;
+const KEY_HISTORY = `simlishLexiconHistory:${CORE_VERSION}`;
+const DIR = { ES2SIM:"ES2SIM", SIM2ES:"SIM2ES" };
+let CURRENT_DIR = DIR.ES2SIM;
+let lastLearnedCount = 0;
 
-// Conectamos siempre al mismo host (Render): rutas relativas
-const API = {
-  ping: () => fetch("/", {cache:"no-store"}).then(r=>r.json()).catch(()=>null),
-  pull: () => fetch("/data", {cache:"no-store"}).then(r=>r.json()),
-  push: (payload) => fetch("/data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}),
-  auth: (pass) => fetch("/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pass})}).then(r=>r.json()),
-  newTravieso: () => fetch("/admin/travieso/new-pass",{method:"POST",headers:{"Content-Type":"application/json","x-auth-token":ADMIN_TOKEN}}).then(r=>r.json()),
-  verifyTravieso: (phrase) => fetch("/chat/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phrase})}).then(r=>r.json()),
-  ml: (text,mode="simlish") => fetch("/ml",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text,mode})}).then(r=>r.json())
-};
+/* Backend forzado */
+const BACKEND_URL = "https://simlish-translator-backend.onrender.com/";
+let pushTimer = null, pulling = false, lastPushOk = null, dirtySinceLastPush = false;
 
-/* ===================== HELPERS ===================== */
-const deacc=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-const normEs=s=>deacc(String(s||"").toLowerCase()).trim();
-const normSim=s=>String(s||"").toLowerCase().trim();
+/* ML persona actual (Sim Chat) */
+let CURRENT_PERSONA = "clasico";
+
+/* Utils */
+const deacc = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const normEs = s => deacc(String(s||"").toLowerCase()).trim();
+const normSim = s => String(s||"").toLowerCase().trim();
+
 function defaultUserStore(){ return { es2sim:{}, sim2es:{} }; }
-function loadUser(){ try{ return JSON.parse(localStorage.getItem(KEY_USER)||"") || defaultUserStore(); }catch{ return defaultUserStore(); } }
-function saveUser(){ try{ localStorage.setItem(KEY_USER, JSON.stringify(USER)); }catch{} schedulePush(); }
+function loadUser(){ try{ return JSON.parse(localStorage.getItem(KEY_USER)||"") || defaultUserStore(); } catch{ return defaultUserStore(); } }
+function saveUser(store){ try{ localStorage.setItem(KEY_USER, JSON.stringify(store)); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
 function loadHistory(){ try{ return JSON.parse(localStorage.getItem(KEY_HISTORY)||"[]"); }catch{ return []; } }
-function saveHistory(){ try{ localStorage.setItem(KEY_HISTORY, JSON.stringify(HISTORY.slice(-10))); }catch{} schedulePush(); }
+function saveHistory(list){ try{ localStorage.setItem(KEY_HISTORY, JSON.stringify(list.slice(-10))); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
+function canLearn(){ return true; }
 
-let USER=loadUser();
-let HISTORY=loadHistory();
-let pushTimer=null, dirty=false;
-function schedulePush(){ dirty=true; clearTimeout(pushTimer); pushTimer=setTimeout(async()=>{
-  try{ await API.push({core_version:CORE_VERSION,user:USER,history:HISTORY}); dirty=false; }catch{}
-  updateHost();
-}, 500); }
+let USER = loadUser();
+let HISTORY = loadHistory();
 
-/* ===================== CORE DATA (vocab + phrasebook) ===================== */
+/* ===================== CORE v3.1 (recortado aquí para tamaño) ===================== */
+/* Nota: mantenemos un núcleo suficiente para funcionar y evitar duplicados.
+   Puedes ampliar en el backend más adelante si quieres servir /core.json */
 const DATA = {
-  gramatica:{
-    orden:"Sujeto – Verbo – Objeto (SVO)",
-    adjetivo:"Después del sustantivo",
-    posesion:"Con 'ta' → Parshu ta meeba = mi pareja",
-    negacion:{ nah:"no (simple)", nuvva:"nunca / negación fuerte" },
-    plural:"Usar -s / -as / -us según sonoridad",
-    comparativos:{ moo:"más", minnu:"menos", firbs:"muy" },
-    tiempos:{
-      auxiliar:"shoba = estar/ser",
-      prefijos:{ "dra-":"pasado", "to-":"futuro" },
-      sufijos:{ "-nu":"presente / en acto", "-ru":"aspecto en curso" }
-    },
-    interrogativos:{ harva:"qué/cómo (general)", kujan:"cómo (coloquial)" },
-    conectores:{ "plubbu":"y/pero","ta":"de/que/para/a","wit":"con","palu":"para","entru":"entonces","kuzra":"porque","thooba":"aunque","sooba":"así que","hovra":"sin embargo","pleebu":"si / por ejemplo" },
-    adverbios_tiempo:{ nuvra:"ahora", yestu:"ayer", todra:"antes", tombru:"mañana", soonru:"pronto", dovra:"noche", sulah:"día" }
+  "gramatica": {
+    "orden": "Sujeto – Verbo – Objeto (SVO)",
+    "adjetivo": "Después del sustantivo",
+    "posesion": "Con 'ta' → Parshu ta meeba = mi pareja",
+    "negacion": { "nah": "no (simple)", "nuvva": "nunca / negación fuerte" },
+    "plural": "Usar -s / -as / -us según sonoridad",
+    "comparativos": { "moo": "más", "minnu": "menos", "firbs": "muy" },
+    "tiempos": { "auxiliar":"shoba", "prefijos":{"dra-":"pasado","to-":"futuro"}, "sufijos":{"-nu":"presente","-ru":"progresivo"} },
+    "adverbios_tiempo": { "nuvra":"ahora","yestu":"ayer","tombru":"mañana" }
   },
-  vocabulario:{
-    pronombres:{ "meeba":"yo","teeba":"tú","heeba":"él","sheba":"ella","weeba":"nosotros","da":"el/la/los/las" },
-    basicos:{
-      "sul sul":"hola", "su laa":"bienvenidos",
-      "dag dag":"chao", "da vaa":"adiós",
-      "yibu":"sí","nah":"no","nuvva":"nunca","felnu":"perdón","firvu":"bien hecho","whazzu":"¿qué pasa?","frezzu":"felicidades","vrashoo":"ojalá","welbru":"bienvenido","oddru":"otro","gratvu":"gracias","prezooba":"bonito/hermoso","nibbu":"bebé"
-    },
-    lugares:{ "varkun":"mercado","savrak":"escuela","tavruu":"taberna","domru":"templo","karshu":"cárcel","frambu":"granja","talvak":"taller","citra":"pueblo","shorva-midru":"plaza central" },
-    casa:{ "grivna":"pared","tavnek":"techo","grundal":"suelo","ventra":"ventana","dorvu":"puerta","skravla":"escalera","plavru":"patio","fumrak":"chimenea","slumbaa":"cama","trabka":"mesa","krinta":"silla","garvun":"armario","lumbru":"sofá","sholvik":"estante","glimra":"lámpara" },
-    naturaleza:{ "dravun":"árbol","lurvak":"bosque","rivru":"río","lagru":"lago","morvak":"mar","mornak":"montaña","vallru":"valle","plavna":"pradera","skavru":"cielo","nubba":"nube","sulvar":"sol","lunvar":"luna","strovna":"estrella","wairnu":"viento","grunva":"tierra" },
-    clima:{ "shusha":"lluvia","bravruu":"tormenta","drovak":"trueno","skrashu":"rayo/relámpago","flavru":"nieve","kravnu":"granizo","hetru":"calor","friznu":"frío","grovna":"nube oscura","prismoo":"arcoíris" },
-    cocina:{ "fooba":"comida","shubra":"ropa","lavru":"lavar","olbru":"olla","frilpa":"sartén","klivra":"cuchillo","spuvu":"cuchara","platru":"plato","glavru":"vaso","ovrak":"horno","stovru":"fuego de cocina" },
-    verbos_cotidianos:{ "brazu":"cocinar","nomma":"comer","gluppa":"beber","delvu":"servir","klasha":"cortar","mashka":"masticar","travnu":"ir/ir a","gavna":"tener","dropla":"dejar caer","workru":"trabajar","zurnu":"ganas/ánimo","showru":"aparecer/mostrar(se)" },
-    sabores_estado:{ "tastu":"sabrosa","brasha":"caliente","swibbu":"dulce","salgru":"salada","bitra":"amarga","sharvu":"picante","tartu":"ácida","fluska":"limpio" },
-    cuerpo:{ "kavra":"cabeza","manru":"mano","okru":"ojo","mokra":"boca","legra":"pierna","podru":"pie","krovna":"corazón","bonka":"hueso","skarna":"piel" },
-    organos:{ "bravna":"cerebro","stomru":"estómago","lungra":"pulmones","livru":"hígado","kidru":"riñón","krovak":"sangre","alvra":"alma","introv":"intestino","zanvak":"eterno" },
-    sentidos:{ "vooba":"ver","lurmu":"oír","snorva":"oler","gustra":"saborear","takru":"tocar","senvra":"sentir","perklu":"percibir" },
-    emociones:{ "jibnu":"feliz","mavruu":"triste","dranza":"cansado","blennu":"aburrido","franvu":"preocupado","satruu":"satisfecho","sumba":"calmado","zenvru":"celoso","pravna":"orgulloso","shombra":"avergonzado","gratru":"agradecido","truval":"confiado","timbru":"tímido" },
-    valores:{ "jusvak":"justicia","kindru":"bondad","dravru":"maldad","onrak":"honor","loybru":"lealtad","savra":"sabiduría" },
-    relaciones:{ "klavu":"amigo","onbru":"solo","neebu":"vecino","vorna":"líder","zorvik":"enemigo","stravru":"desconocido","sambru":"compañero","parshu":"pareja","lomvak":"maestro","savba":"enseñar","savnu":"aprender","savrin":"aprendiz" },
-    animales:{ "mivvu":"gato","woofum":"perro","chirva":"ave/pájaro","bluppa":"pez","tranka":"caballo","bovru":"vaca","skivvi":"ratón","vulka":"zorro","snorka":"cerdo","balmu":"oveja" },
-    tecnologia_epico:{ "netvra":"internet","stabru":"estable","zavrush":"aventuras" },
-    narrativa_raices:{ "zombru":"guiar/liderar (épico)","gravnu":"aldea/ciudad grande","flowru":"flujo espiritual/energía","shobru":"mostrar/revelar" },
-    custom:{ "plarvoh":"mañana","nurplah":"juguemos" }
+  "vocabulario": {
+    "pronombres":{"meeba":"yo","teeba":"tú","heeba":"él","sheba":"ella","weeba":"nosotros","da":"el/la/los/las"},
+    "basicos":{"yibu":"sí","nah":"no","nuvva":"nunca","sul sul":"hola","su laa":"bienvenidos","dag dag":"chao","da vaa":"adiós","felnu":"perdón","firvu":"bien hecho","whazzu":"¿qué pasa?","frezzu":"felicidades","vrashoo":"ojalá","welbru":"bienvenido","oddru":"otro","gratvu":"gracias","prezooba":"bonito/hermoso","nibbu":"bebé"},
+    "verbos_cotidianos":{"brazu":"cocinar","nomma":"comer","gluppa":"beber","delvu":"servir","klasha":"cortar","mashka":"masticar","travnu":"ir/ir a","gavna":"tener","dropla":"dejar caer","workru":"trabajar","zurnu":"ganas/ánimo","showru":"aparecer/mostrar(se)"},
+    "clima":{"shusha":"lluvia","skrashu":"rayo/relámpago","friznu":"frío","brasha":"caliente"}
   },
-  phrasebook:{
-    saludos:{ "Su laa!":"¡Bienvenidos!","Kujan teeba shoba?":"¿Cómo estás?"},
-    extras_calendario:{ "Nuvra shoba Lurnas.":"Hoy es lunes.","Tombru shoba Tarnas.":"Mañana será martes.","Ta Mernas weeba playru Simms.":"El miércoles jugamos Sims."}
+  "phrasebook":{
+    "saludos":{"Su laa!":"¡Bienvenidos!","Sul sul!":"¡Hola!","Dag dag!":"¡Chao!","Da vaa.":"Adiós."},
+    "cotidianas":{"Meeba brazu supa brasha.":"Cocino sopa caliente.","Delvu da supa wit spuvu.":"Sirve la sopa con la cuchara."}
   }
 };
 
-/* ===================== ÍNDICES ===================== */
+/* ===================== Índices CORE + PHRASEBOOK ===================== */
 let CORE_ES2SIM=new Map(), CORE_SIM2ES=new Map(), PH_ES2SIM=new Map(), PH_SIM2ES=new Map();
 (function buildCore(){
   for(const entries of Object.values(DATA.vocabulario)){
     for(const [sim, es] of Object.entries(entries)){
-      const espNorm=normEs(es), simNorm=normSim(sim);
-      for(const v of espNorm.split(/[\/ ,]/).map(s=>s.trim()).filter(Boolean)){
-        if(!CORE_ES2SIM.has(v)) CORE_ES2SIM.set(v, sim);
-      }
+      const espNorm = normEs(es), simNorm = normSim(sim);
+      const variants = espNorm.split(/[\/ ,]/).map(s=>s.trim()).filter(Boolean);
+      for(const v of variants){ if(!CORE_ES2SIM.has(v)) CORE_ES2SIM.set(v, sim); }
       if(!CORE_SIM2ES.has(simNorm)) CORE_SIM2ES.set(simNorm, es.split('/')[0]);
     }
   }
@@ -287,39 +273,52 @@ let CORE_ES2SIM=new Map(), CORE_SIM2ES=new Map(), PH_ES2SIM=new Map(), PH_SIM2ES
   }
 })();
 
-/* ===================== MULTI PALABRAS (p.ej. "su laa") ===================== */
-function multiKeys(){
-  const k=new Set();
-  for(const entries of Object.values(DATA.vocabulario||{})){
-    for(const sim of Object.keys(entries||{})){ if(sim.includes(" ")) k.add(sim.toLowerCase()); }
+/* ===================== Multi-palabras SIMLISH ===================== */
+function getMultiSimKeys(){
+  const keys = new Set();
+  for (const entries of Object.values(DATA.vocabulario||{})){
+    for (const sim of Object.keys(entries||{})){
+      if (sim.includes(" ")) keys.add(sim.toLowerCase());
+    }
   }
-  for(const sim of Object.keys(USER.sim2es||{})){ if(sim.includes(" ")) k.add(sim.toLowerCase()); }
-  return Array.from(k).sort((a,b)=>b.length-a.length);
+  for (const sim of Object.keys((USER&&USER.sim2es)||{})){
+    if (sim && sim.includes(" ")) keys.add(sim.toLowerCase());
+  }
+  return Array.from(keys).sort((a,b)=> b.length - a.length);
 }
 function compressMultiSim(text){
-  let out=text;
-  for(const key of multiKeys()){
-    const re=new RegExp("\\b"+key.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","gi");
-    out=out.replace(re, m=>m.replace(/\s+/g,"_"));
+  let out = text;
+  const keys = getMultiSimKeys();
+  for (const key of keys){
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const re = new RegExp(`\\b${escaped}\\b`, "gi");
+    out = out.replace(re, (m)=> m.replace(/\s+/g, "_"));
   }
   return out;
 }
-function expandMultiSimToken(t){ return t.replace(/_/g," "); }
+function expandMultiSimToken(token){ return token.replace(/_/g, " "); }
 
-/* ===================== CONFLICTOS ===================== */
+/* ===================== Utilidades varias ===================== */
+function currentSimOwner(sim){ const k=normSim(sim); if(USER.sim2es[k]) return {scope:"USER", es:USER.sim2es[k]}; if(CORE_SIM2ES.has(k)) return {scope:"CORE", es:CORE_SIM2ES.get(k)}; return null; }
+function preserveCase(o,r){ return /^[A-Z]/.test(o) ? r.charAt(0).toUpperCase()+r.slice(1) : r; }
+function ensureUniqueSim(sim, es){
+  let base=normSim(sim); const owner=currentSimOwner(base);
+  if(!owner || normEs(owner.es)===normEs(es)) return sim;
+  const suff=["ah","eh","oh","nu","ru","va","la","ra","ba"];
+  for(const s of suff){ const cand=base+s; if(!currentSimOwner(cand)) return preserveCase(sim,cand); }
+  let i=2; while(currentSimOwner(base+i)) i++; return preserveCase(sim, base+i);
+}
 function scanConflicts(){
   const seen=new Map(), conflicts=[];
-  function addMap(obj){ for(const [es,sim] of Object.entries(obj)){ const s=normSim(sim), e=normEs(es);
-    if(!seen.has(s)) seen.set(s,e); else if(seen.get(s)!==e) conflicts.push({sim:s,a:seen.get(s),b:e}); } }
+  function addMap(obj){ for(const [es,sim] of Object.entries(obj)){ const s=normSim(sim), e=normEs(es); if(!seen.has(s)) seen.set(s,e); else if(seen.get(s)!==e) conflicts.push({sim:s,a:seen.get(s),b:e}); } }
   for(const entries of Object.values(DATA.vocabulario)){ for(const [sim,es] of Object.entries(entries)) addMap({[es]:sim}); }
-  addMap(USER.es2sim||{});
-  return conflicts;
+  addMap(USER.es2sim||{}); return conflicts;
 }
 
-/* ===================== TIEMPOS + GENERADOR ===================== */
-const adv=DATA.gramatica.adverbios_tiempo||{};
+/* ===================== Tiempos + Generador + Aprendizaje ===================== */
+const adv = DATA.gramatica.adverbios_tiempo || {};
 const PAST_LEX=new RegExp("\\b("+["ayer","antes","ya",adv.yestu,"anoche"].filter(Boolean).join("|")+")\\b","i");
-const FUT_LEX =new RegExp("\\b("+["mañana","manana","luego","después","despues","pronto",adv.tombru,"pasado mañana"].filter(Boolean).join("|")+")\\b","i");
+const FUT_LEX=new RegExp("\\b("+["mañana","manana","luego","después","despues","pronto",adv.tombru,"pasado mañana"].filter(Boolean).join("|")+")\\b","i");
 const PRES_LEX=new RegExp("\\b("+["hoy","ahora","enseguida",adv.nuvra].filter(Boolean).join("|")+")\\b","i");
 const RE={ ira:/\b(voy|vas|va|vamos|van)\s+a\s+[a-záéíóúñü]+(ar|er|ir)\b/i, fut:/\b[a-záéíóúñü]+(ré|rás|rá|remos|rán)\b/i,
   pret:/\b[a-záéíóúñü]+(é|aste|ó|amos|aron|í|iste|ió|imos|ieron)\b/i, imp:/\b[a-záéíóúñü]+(aba|abas|ábamos|aban|ía|ías|íamos|ían)\b/i,
@@ -327,66 +326,48 @@ const RE={ ira:/\b(voy|vas|va|vamos|van)\s+a\s+[a-záéíóúñü]+(ar|er|ir)\b/
   prog:/\b(estoy|estas|está|estamos|están|estás)\s+[a-záéíóúñü]+(ando|iendo|yendo)\b/i };
 const TENSE={ PAST:"past", PRESENT:"present", FUTURE:"future", PROG:"progressive" };
 function detectTense(es){ if(RE.prog.test(es))return TENSE.PROG; if(FUT_LEX.test(es)||RE.ira.test(es)||RE.fut.test(es))return TENSE.FUTURE; if(PAST_LEX.test(es)||RE.pret.test(es)||RE.imp.test(es)||RE.pastIrreg.test(es))return TENSE.PAST; if(PRES_LEX.test(es))return TENSE.PRESENT; return TENSE.PRESENT; }
-
 function xorshift32(seed){ let x=seed|0; return ()=> (x^=x<<13,x^=x>>>17,x^=x<<5,(x>>>0)/4294967296); }
 function hashStr(s){ let h=2166136261>>>0; for(const c of s) h=Math.imul(h ^ c.charCodeAt(0),16777619); return h>>>0; }
 const SYLL=["su","la","noo","boo","zim","zam","sha","bah","voh","plar","gib","yib","flo","fru","doo","ka","ru","shi","ku","va","na","mo","ta","re","lo"];
-function ensureUniqueSim(sim, es){
-  const base=normSim(sim);
-  const owner = (USER.sim2es[base] ? {scope:"USER"} : (CORE_SIM2ES.has(base) ? {scope:"CORE"} : null));
-  if(!owner) return sim;
-  if(USER.sim2es[base] && normEs(USER.sim2es[base])===normEs(es)) return sim;
-  const suff=["ah","eh","oh","nu","ru","va","la","ra","ba"];
-  for(const s of suff){ const cand=base+s; if(!(USER.sim2es[cand]||CORE_SIM2ES.has(cand))) return sim.replace(base, cand); }
-  let i=2; while(USER.sim2es[base+i]||CORE_SIM2ES.has(base+i)) i++; return sim.replace(base, base+i);
-}
-function synth(word){
-  const w=normEs(word).replace(/[^a-z0-9\s]/g,""); if(!w) return word;
-  const rnd=xorshift32(hashStr(w)); let n=Math.max(2,Math.min(4,Math.ceil(w.length/4)));
-  let out=[]; for(let i=0;i<n;i++) out.push(SYLL[Math.floor(rnd()*SYLL.length)]);
-  let res=out.join(""); if(/r$/.test(w)) res+="ru"; if(/n$/.test(w)) res+="nu"; return ensureUniqueSim(res, word);
-}
-
-/* ===================== APRENDIZAJE ===================== */
-function tokensOf(text){ return text.match(/[\wáéíóúñü_]+|[.,;:!?]/gi) || [text]; }
+function synth(word){ const w=normEs(word).replace(/[^a-z0-9\s]/g,""); if(!w) return word; const rnd=xorshift32(hashStr(w)); let n=Math.max(2,Math.min(4,Math.ceil(w.length/4))); let out=[]; for(let i=0;i<n;i++) out.push(SYLL[Math.floor(rnd()*SYLL.length)]); let res=out.join(""); if(/r$/.test(w)) res+="ru"; if(/n$/.test(w)) res+="nu"; return ensureUniqueSim(res, word); }
 function learnPairs(pairs){
   let learned=0, stamped=[];
-  for(const [esRaw, simRaw] of pairs){
+  for (const [esRaw, simRaw] of pairs){
     const es=String(esRaw||"").trim();
-    const simCand=String(simRaw||"").trim() || synth(es);
-    const sim=ensureUniqueSim(simCand, es);
+    const sim1=String(simRaw||"").trim();
+    if(!es) continue;
+    const sim=ensureUniqueSim(sim1 || synth(es), es);
     const kEs=normEs(es), kSim=normSim(sim);
-    if(!kEs || !kSim) continue;
+    if(!kSim) continue;
 
     const prevSim=USER.es2sim[kEs]; if(prevSim && normSim(prevSim)!==kSim){ delete USER.sim2es[normSim(prevSim)]; }
-    const prevEs =USER.sim2es[kSim]; if(prevEs && normEs(prevEs)!==kEs){ delete USER.es2sim[normEs(prevEs)]; }
+    const prevEs=USER.sim2es[kSim]; if(prevEs && normEs(prevEs)!==kEs){ delete USER.es2sim[normEs(prevEs)]; }
 
     if(!USER.es2sim[kEs]){ USER.es2sim[kEs]=sim; learned++; }
-    USER.sim2es[kSim]=es;
-    stamped.push({es,sim,t:new Date().toISOString()});
+    if(!USER.sim2es[kSim]){ USER.sim2es[kSim]=es; }
+    stamped.push({es, sim, t:new Date().toISOString()});
   }
-  if(stamped.length){ HISTORY=[...HISTORY, ...stamped].slice(-10); saveHistory(); }
-  if(learned>0) saveUser();
+  if(stamped.length){ HISTORY=[...HISTORY, ...stamped].slice(-10); saveHistory(HISTORY); }
+  if(learned>0) saveUser(USER);
   return learned;
 }
 
-/* ===================== TRADUCCIÓN ===================== */
+/* ===================== Traducción ===================== */
+function tokensOf(text){ return text.match(/[\wáéíóúñü_]+|[.,;:!?]/gi) || [text]; }
+
 function translateES2SIM(text){
-  const sentences = text.match(/[^.!?]+[.!?]?/g) || [text];
-  let newPairs=[];
-  const out = sentences.map(raw=>{
+  const sentences=text.match(/[^.!?]+[.!?]?/g) || [text]; let newPairs=[];
+  const out=sentences.map(raw=>{
     const s=raw.trim(); if(!s) return "";
-    const pb=PH_ES2SIM.get(normEs(s.replace(/[.!?]$/,""))); if(pb) return pb;
+
+    const pb = PH_ES2SIM.get(normEs(s.replace(/[.!?]$/,""))); if(pb) return pb;
 
     const hasNever=/\bnunca\b/i.test(s), hasNo=/\bno\b/i.test(s); const NEG=hasNever?"nuvva":(hasNo?"nah":"");
     const tense=detectTense(s); const toks=tokensOf(s); const simToks=[]; let injected=false;
-
     for(const t of toks){
       if(/^[.,;:!?]$/.test(t)){ simToks.push(t); continue; }
-      const key=normEs(t);
-      let sim=USER.es2sim[key] || CORE_ES2SIM.get(key);
+      const key=normEs(t); let sim=USER.es2sim[key] || CORE_ES2SIM.get(key);
       if(!sim){ sim=synth(t); newPairs.push([key, sim]); } else { sim=ensureUniqueSim(sim, t); }
-
       const isVerb=["brazu","nomma","gluppa","delvu","klasha","mashka","travnu","gavna","dropla","workru","zurnu","showru"].includes(normSim(sim));
       if(!injected && isVerb){
         let pref="", suf="", aux="shoba";
@@ -399,275 +380,302 @@ function translateES2SIM(text){
       }
     }
     let outS=simToks.join(" ").replace(/\s+([.,;:!?])/g,"$1").replace(/\s+/g," ").trim();
-    if(outS) outS=outS.charAt(0).toUpperCase()+outS.slice(1);
-    return outS;
+    if(outS) outS=outS.charAt(0).toUpperCase()+outS.slice(1); return outS;
   }).join(" ");
-  lastLearnedCount = learnPairs(newPairs);
-  return out;
+  const learnedFromGen=learnPairs(newPairs);
+  return { text: out, learnedFromGen };
 }
 
 function translateSIM2ES(text){
   const sentences = text.match(/[^.!?]+[.!?]?/g) || [text];
   const out = sentences.map(raw=>{
-    const s=raw.trim(); if(!s) return "";
+    const s = raw.trim(); if(!s) return "";
 
-    const pb=PH_SIM2ES.get(normSim(s.replace(/[.!?]$/,""))); if(pb) return pb;
+    const pb = PH_SIM2ES.get(normSim(s.replace(/[.!?]$/,""))); if(pb) return pb;
 
-    const pre=compressMultiSim(s);
-    const toks=tokensOf(pre); const esToks=[];
+    const pre = compressMultiSim(s);
+    const toks = tokensOf(pre);
+    const esToks = [];
+
     for(const t0 of toks){
       if(/^[.,;:!?]$/.test(t0)){ esToks.push(t0); continue; }
-      const t=expandMultiSimToken(t0);
-      const key=normSim(t);
-      let es=USER.sim2es[key] || CORE_SIM2ES.get(key);
+      const t = expandMultiSimToken(t0);
+      const key = normSim(t);
+
+      let es = USER.sim2es[key] || CORE_SIM2ES.get(key);
       if(!es){
-        const base=key.replace(/^(dra-|to-)/,"").replace(/(-nu|-ru)$/,"");
-        es=USER.sim2es[base] || CORE_SIM2ES.get(base);
+        const base = key.replace(/^(dra-|to-)/,"").replace(/(-nu|-ru)$/,"");
+        es = USER.sim2es[base] || CORE_SIM2ES.get(base);
       }
-      if(!es) es=t;
+      if(!es){ es = t; }
       esToks.push(es);
     }
-    let outS=esToks.join(" ").replace(/\s+([.,;:!?])/g,"$1").replace(/\s+/g," ").trim();
-    if(outS) outS=outS.charAt(0).toUpperCase()+outS.slice(1);
+
+    let outS = esToks.join(" ").replace(/\s+([.,;:!?])/g,"$1").replace(/\s+/g," ").trim();
+    if(outS) outS = outS.charAt(0).toUpperCase() + outS.slice(1);
     return outS;
   }).join(" ");
-  return out;
+  return { text: out };
 }
 
-/* ===================== UI BASICS ===================== */
-const $in=doc("in"),$out=doc("out"),$dirLabel=doc("dirLabel"),$stateDirVal=doc("stateDirVal");
-const $stateLearnVal=doc("stateLearnVal"),$confCount=doc("confCount"),$hostState=doc("hostState");
-doc("toggleDir").onclick=()=>{ CURRENT_DIR=(CURRENT_DIR===DIR.ES2SIM?DIR.SIM2ES:DIR.ES2SIM); const lbl=(CURRENT_DIR===DIR.ES2SIM?"ES → SIM":"SIM → ES"); $dirLabel.textContent=lbl; $stateDirVal.textContent=lbl.replace(" ",""); };
-doc("translate").onclick=doTranslate;
-doc("clear").onclick=()=>{ $in.value=""; $out.textContent="--"; lastLearnedCount=0; refreshMeta(); };
-doc("copy").onclick=async()=>{ const txt=$out.textContent.trim(); if(!txt||txt==="--") return alert("No hay texto para copiar."); await navigator.clipboard.writeText(txt); };
-doc("demo").onclick=()=>{ if(CURRENT_DIR===DIR.ES2SIM) $in.value="Ayer cociné sopa caliente y mañana la compartiré."; else $in.value="Su laa, meeba shoba dra-brazu supa brasha."; doTranslate(); };
-doc("btnExport").onclick=()=>{ window.location.href="/backup/download"; };
-doc("btnConflicts").onclick=renderConflicts;
-doc("btnConflicts2").onclick=renderConflicts;
+/* ===================== UI refs ===================== */
+const $in=document.getElementById("in"), $out=document.getElementById("out");
+const $btn=document.getElementById("translate"), $clear=document.getElementById("clear");
+const $copy=document.getElementById("copy"), $demo=document.getElementById("demo");
+const $toggleDir=document.getElementById("toggleDir"), $dirLabel=document.getElementById("dirLabel");
+const $stateDirVal=document.getElementById("stateDirVal"), $stateLearnVal=document.getElementById("stateLearnVal");
+const $meta=document.getElementById("meta"), $metaLex=document.getElementById("metaLex");
+const $exportBtn=document.getElementById("exportBtn"), $history=document.getElementById("history");
+const $confBadge=document.getElementById("confBadge"), $confCount=document.getElementById("confCount");
+const $hostChip=document.getElementById("hostChip"), $hostState=document.getElementById("hostState");
+const $strictBanner=document.getElementById("strictBanner");
+const $conflictsBtn=document.getElementById("conflictsBtn");
 
-function doc(id){ return document.getElementById(id); }
-function doTranslate(){
-  const raw=($in.value||"").trim(); if(!raw){ $out.textContent="--"; refreshMeta(); return; }
-  const res = (CURRENT_DIR===DIR.ES2SIM ? translateES2SIM(raw) : translateSIM2ES(raw));
-  $out.textContent=res||"--"; refreshMeta();
-}
-function refreshMeta(){
-  $stateLearnVal.textContent=String(lastLearnedCount||0);
-  const confs=scanConflicts(); $confCount.textContent=String(confs.length);
-  // historial
-  const $h=doc("history");
-  const arr=(Array.isArray(HISTORY)?HISTORY:[]).slice(-10);
-  $h.innerHTML = arr.length? arr.map(h=>`• <b>${h.es}</b> ↔ <i>${h.sim}</i> <span class="muted">(${new Date(h.t||Date.now()).toLocaleString()})</span>`).join("<br>") : "--";
-  // meta
-  const cats=Object.keys(DATA.vocabulario||{}); let totalCore=0; for(const c of cats) totalCore+=Object.keys(DATA.vocabulario[c]).length;
-  const phCount=Object.values(DATA.phrasebook||{}).reduce((a,g)=>a+Object.keys(g).length,0);
-  doc("meta").textContent=`Categorías: ${cats.length} · Entradas base: ${totalCore} · Phrasebook: ${phCount} · Usuario: ${Object.keys(USER.es2sim).length}/${Object.keys(USER.sim2es).length}`;
-}
+const $chatIn=document.getElementById("chatIn"), $chatOut=document.getElementById("chatOut");
+const $chatSend=document.getElementById("chatSend"), $chatClear=document.getElementById("chatClear");
 
-/* ===================== SYNC HOST ===================== */
-async function pullFromHost(){
-  try{
-    const r=await API.pull(); if(r && r.user){
-      USER = { es2sim:{}, sim2es:{}, ...(r.user||{}) };
-      HISTORY = Array.isArray(r.history)? r.history.slice(-10) : [];
-      saveUser(); saveHistory();
-    }
-  }catch{}
-  updateHost(); refreshMeta();
-}
-async function updateHost(){ try{ const ok=await API.ping(); $hostState.textContent = ok && ok.ok ? "OK" : "Sin respuesta"; }catch{ $hostState.textContent="Sin respuesta"; } }
+/* ===================== UI helpers ===================== */
+function setDir(d){ CURRENT_DIR=d; const lbl=d===DIR.ES2SIM?"ES → SIM":"SIM → ES"; $dirLabel.textContent=lbl; if($stateDirVal) $stateDirVal.textContent=lbl.replace(" ",""); }
 
-/* ===================== ADMIN PANEL ===================== */
-doc("secretUnlock").onclick=async()=>{
-  const pass=(doc("secretPass").value||"").trim(); if(!pass) return alert("Escribe la contraseña.");
-  const r=await API.auth(pass);
-  if(r && r.ok){ ADMIN_TOKEN=r.token; sessionStorage.setItem("admintoken",ADMIN_TOKEN); doc("secretPass").value=""; doc("secretPanel").style.display="block"; }
-  else alert("Contraseña incorrecta.");
-};
-(function restoreAdmin(){ const t=sessionStorage.getItem("admintoken"); if(t){ ADMIN_TOKEN=t; doc("secretPanel").style.display="block"; } })();
+/* ===================== BOTONES BÁSICOS ===================== */
+$toggleDir.addEventListener("click", ()=> setDir(CURRENT_DIR===DIR.ES2SIM?DIR.SIM2ES:DIR.ES2SIM));
+$btn.addEventListener("click", doTranslate);
+$clear.addEventListener("click", ()=>{ $in.value=""; $out.textContent="--"; lastLearnedCount=0; refreshMeta(); });
+$copy.addEventListener("click", async ()=>{ const txt=$out.textContent.trim(); if(!txt||txt==="--"){ alert("No hay texto para copiar."); return; } try{ await navigator.clipboard.writeText(txt); $copy.textContent="¡Copiado!"; setTimeout(()=>{$copy.textContent="Copiar";},900); }
+catch{ const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); $copy.textContent="¡Copiado!"; } finally{ document.body.removeChild(ta); setTimeout(()=>{$copy.textContent="Copiar";},900); } } });
+$demo.addEventListener("click", ()=>{ if(CURRENT_DIR===DIR.ES2SIM){ $in.value="Ayer cociné sopa caliente, hoy la estoy sirviendo y mañana la voy a compartir."; } else { $in.value="Su laa, meeba shoba dra-brazu supa brasha. Delvu da supa wit spuvu."; } doTranslate(); });
+$exportBtn.addEventListener("click", ()=>{ const data=localStorage.getItem(KEY_USER) || "{}"; const blob=new Blob([data], {type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`simlish-vocab-user-v${CORE_VERSION}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); });
+$conflictsBtn.addEventListener("click", ()=>{
+  const confs = scanConflicts();
+  if(!confs.length){ alert("Sin conflictos en CORE+USER."); return; }
+  alert("Conflictos ("+confs.length+"):\n\n"+confs.map(c=>`• ${c.sim} ↔ “${c.a}” / “${c.b}”`).join("\n"));
+});
 
-// Buscar/editar/borrar
-doc("btnSearch").onclick=()=>{
-  const q=(doc("searchQuery").value||"").trim().toLowerCase();
-  const mode = Array.from(document.querySelectorAll('input[name="mode"]')).find(r=>r.checked)?.value || "ES";
-  renderResults(resultsFromQuery(q, mode));
-};
-doc("btnGen").onclick=()=>{ const es=(doc("newEs").value||"").trim(); if(!es) return alert("Escribe Español."); doc("newSim").value=ensureUniqueSim(synth(es), es); };
-doc("btnCreate").onclick=()=>{
-  const es=(doc("newEs").value||"").trim(); let sim=(doc("newSim").value||"").trim();
-  if(!es) return alert("Debes escribir Español."); if(!sim) sim=ensureUniqueSim(synth(es), es);
-  const kEs=normEs(es), kSim=normSim(sim);
-  const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==sim){ delete USER.sim2es[normSim(prevSim)]; }
-  const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==es){ delete USER.es2sim[normEs(prevEs)]; }
-  USER.es2sim[kEs]=sim; USER.sim2es[kSim]=es;
-  HISTORY=[...HISTORY,{es,sim,t:new Date().toISOString()}].slice(-10); saveUser(); saveHistory();
-  doc("newEs").value=""; doc("newSim").value=""; renderResults([{scope:"USER",es,sim}]); refreshMeta();
-};
+/* ===================== SECRET UNLOCK ===================== */
+(function adminLock(){
+  const $pass   = document.getElementById("secretPass");
+  const $unlock = document.getElementById("secretUnlock");
+  const $panel  = document.getElementById("secretPanel");
 
+  function lock(){ if($panel) $panel.style.display = "none"; if($pass) $pass.value=""; }
+  function unlock(){ if($panel) $panel.style.display = "block"; if($pass) $pass.value=""; }
+
+  $unlock?.addEventListener("click", ()=>{
+    const val = ($pass?.value||"").trim();
+    if(val === ADMIN_PASS) unlock();
+    else alert("Contraseña incorrecta.");
+  });
+
+  document.addEventListener("click", (e)=>{
+    const isSave = e.target && e.target.matches?.('[data-action="save"]');
+    if(isSave) setTimeout(lock, 200);
+  });
+  document.getElementById("btnCreate")?.addEventListener("click", ()=> setTimeout(lock, 200));
+})();
+
+/* ===================== EDITOR ===================== */
 function resultsFromQuery(q, mode){
-  const items=[]; if(!q) return items;
+  q=(q||"").trim().toLowerCase(); const items=[]; if(!q) return items;
   if(mode==="ES"){
-    for(const [es,sim] of Object.entries(USER.es2sim||{})){ if(es.includes(q)) items.push({scope:"USER",es,sim}); }
-    for(const [es,sim] of CORE_ES2SIM.entries()){ if(es.includes(q) && !(USER.es2sim&&USER.es2sim[es])) items.push({scope:"CORE",es,sim}); }
+    for(const [es,sim] of Object.entries(USER.es2sim||{})){ if(es.includes(q)) items.push({scope:"USER", es, sim}); }
+    for(const [key, sim] of CORE_ES2SIM.entries()){
+      if(key.includes(q)){
+        const es=key;
+        if(!(USER.es2sim && USER.es2sim[es])) items.push({scope:"CORE", es, sim});
+      }
+    }
   }else{
-    for(const [sim,es] of Object.entries(USER.sim2es||{})){ if(sim.includes(q)) items.push({scope:"USER",es,sim}); }
-    for(const [sim,es] of CORE_SIM2ES.entries()){ if(sim.includes(q) && !(USER.sim2es&&USER.sim2es[sim])) items.push({scope:"CORE",es,sim}); }
+    for(const [simKey, es] of Object.entries(USER.sim2es||{})){ if(simKey.includes(q)) items.push({scope:"USER", es, sim:simKey}); }
+    for(const [simKey, es] of CORE_SIM2ES.entries()){ if(simKey.includes(q)){ if(!(USER.sim2es && USER.sim2es[simKey])) items.push({scope:"CORE", es, sim:simKey}); } }
   }
   return items.slice(0,100);
 }
 function renderResults(list){
-  const $r=doc("results"); $r.innerHTML="";
-  if(!list||!list.length){ $r.innerHTML=`<div class="small muted">Sin resultados.</div>`; return; }
-  list.forEach(item=>{
-    const isCore=item.scope==="CORE";
-    const esId="es_"+Math.random().toString(36).slice(2);
-    const simId="sim_"+Math.random().toString(36).slice(2);
-    const row=document.createElement("div"); row.className="item";
-    row.innerHTML=`
-      <div class="row3">
+  const $results=document.getElementById("results"); if(!$results) return; $results.innerHTML="";
+  if(!list||!list.length){ $results.innerHTML=`<div class="small muted">Sin resultados.</div>`; return; }
+  for(const item of list){
+    const div=document.createElement("div"); div.className="item";
+    const isCore=item.scope==="CORE"; const locked=isCore ? true : false;
+    const esId="es_"+Math.random().toString(36).slice(2), simId="sim_"+Math.random().toString(36).slice(2);
+    div.innerHTML=`<div class="row2">
         <input id="${esId}" value="${item.es}" ${isCore?'disabled':''} title="${isCore?'CORE (solo lectura)':'Español'}"/>
-        <input id="${simId}" value="${item.sim}" ${isCore?'disabled':''} title="${isCore?'CORE (solo lectura)':'Simlish'}"/>
-        <div class="row" style="grid-template-columns:auto auto">
-          <button class="btn sec" data-act="override" ${isCore?'':'style="display:none"'}>Sobrescribir</button>
-          <button class="btn danger" data-act="delete" ${isCore?'disabled':''}>Borrar</button>
-        </div>
+        <input id="${simId}" value="${item.sim}" ${locked?'disabled':''} title="${locked?'Bloqueado':'Simlish'}"/>
+        <button class="btn" ${locked?'disabled':''} data-action="save">Guardar</button>
+        <button class="btn sec" ${locked?'disabled':''} data-action="delete">Borrar</button>
       </div>
-      <small class="muted">${isCore? 'CORE · Crea sobreescritura para cambiarlo.' : 'Usuario · Editable'}</small>
-    `;
-    // guardar edición directa (si es USER)
-    if(!isCore){
-      row.querySelector(`#${esId}`).addEventListener("change", ()=>{
-        const newEs=row.querySelector(`#${esId}`).value.trim(); const oldEs=item.es;
-        const sim=row.querySelector(`#${simId}`).value.trim();
-        if(!newEs||!sim) return;
-        delete USER.es2sim[normEs(oldEs)];
-        USER.es2sim[normEs(newEs)]=sim;
-        USER.sim2es[normSim(sim)]=newEs;
-        HISTORY=[...HISTORY,{es:newEs,sim,t:new Date().toISOString()}].slice(-10); saveUser(); saveHistory(); refreshMeta();
-      });
-      row.querySelector(`#${simId}`).addEventListener("change", ()=>{
-        const es=row.querySelector(`#${esId}`).value.trim(); const sim=row.querySelector(`#${simId}`).value.trim();
-        if(!es||!sim) return;
-        USER.es2sim[normEs(es)]=sim; USER.sim2es[normSim(sim)]=es;
-        HISTORY=[...HISTORY,{es,sim,t:new Date().toISOString()}].slice(-10); saveUser(); saveHistory(); refreshMeta();
-      });
-    }
-    // borrar (solo USER)
-    row.querySelector('[data-act="delete"]')?.addEventListener("click", ()=>{
-      if(isCore) return;
-      const es=row.querySelector(`#${esId}`).value.trim(); const sim=row.querySelector(`#${simId}`).value.trim();
-      if(!es||!sim) return;
-      delete USER.es2sim[normEs(es)]; delete USER.sim2es[normSim(sim)];
-      saveUser(); refreshMeta(); row.remove();
-    });
-    // sobrescribir CORE → crea USER
-    row.querySelector('[data-act="override"]')?.addEventListener("click", ()=>{
-      const es=row.querySelector(`#${esId}`).value.trim(); const sim=row.querySelector(`#${simId}`).value.trim();
-      if(!es||!sim) return;
-      const sug=ensureUniqueSim(sim, es);
-      USER.es2sim[normEs(es)]=sug; USER.sim2es[normSim(sug)]=es;
-      HISTORY=[...HISTORY,{es,sim:sug,t:new Date().toISOString()}].slice(-10); saveUser(); saveHistory();
-      alert("Sobrescritura creada en Usuario: "+es+" ↔ "+sug);
+      <small>${isCore? 'CORE · No editable. Puedes crear una sobreescritura en Usuario si quieres cambiarlo.' : 'Usuario · Editable'}</small>`;
+
+    // Guardar
+    div.querySelector('[data-action="save"]')?.addEventListener('click', ()=>{
+      const esVal=document.getElementById(esId).value.trim(); let simVal=document.getElementById(simId).value.trim();
+      if(!esVal){ alert("Falta Español."); return; } if(!simVal){ simVal=synth(esVal); }
+      simVal=ensureUniqueSim(simVal, esVal);
+      const kEs=normEs(esVal), kSim=normSim(simVal);
+      const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==simVal){ delete USER.sim2es[normSim(prevSim)]; }
+      const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==esVal){ delete USER.es2sim[normEs(prevEs)]; }
+      USER.es2sim[kEs]=simVal; USER.sim2es[kSim]=esVal;
+      HISTORY=[...HISTORY,{es:esVal,sim:simVal,t:new Date().toISOString()}].slice(-10);
+      saveUser(USER); saveHistory(HISTORY); renderResults([{scope:"USER", es:esVal, sim:simVal}]); refreshMeta();
     });
 
-    doc("results").appendChild(row);
-  });
+    // Borrar (solo usuario)
+    div.querySelector('[data-action="delete"]')?.addEventListener('click', ()=>{
+      const esVal=document.getElementById(esId).value.trim(); const simVal=document.getElementById(simId).value.trim();
+      if(!confirm(`¿Borrar el par:\nES: “${esVal}” ↔ SIM: “${simVal}”?`)) return;
+      delete USER.es2sim[normEs(esVal)];
+      delete USER.sim2es[normSim(simVal)];
+      saveUser(USER);
+      renderResults([]); refreshMeta();
+    });
+
+    $results.appendChild(div);
+  }
 }
-function renderConflicts(){
-  const confs=scanConflicts();
-  if(!confs.length) return alert("Sin conflictos 🎉");
-  const lines = confs.map(c=>`• SIM "${c.sim}" → ES "${c.a}" y "${c.b}"`).join("\n");
-  alert("Conflictos encontrados:\n\n"+lines+"\n\nSolución: crea una sobreescritura en Usuario o edita/borras en el panel.");
+document.getElementById("btnSearch")?.addEventListener("click", ()=>{
+  const q=(document.getElementById("searchQuery")?.value)||"";
+  const mode=Array.from(document.querySelectorAll('input[name="mode"]')||[]).find(r=>r.checked)?.value || "ES";
+  renderResults(resultsFromQuery(q, mode));
+});
+document.getElementById("btnGen")?.addEventListener("click", ()=>{
+  const es= (document.getElementById("newEs")?.value||"").trim(); if(!es){ alert("Escribe Español."); return; }
+  document.getElementById("newSim").value = ensureUniqueSim(synth(es), es);
+});
+document.getElementById("btnCreate")?.addEventListener("click", ()=>{
+  const $newEs=document.getElementById("newEs"); const $newSim=document.getElementById("newSim");
+  if(!$newEs||!$newSim){ return; }
+  const es=($newEs.value||"").trim(); let sim=($newSim.value||"").trim();
+  if(!es){ alert("Debes escribir la palabra en Español."); return; }
+  if(!sim){ sim=ensureUniqueSim(synth(es), es); }
+  const kEs=normEs(es), kSim=normSim(sim);
+  const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==sim){ delete USER.sim2es[normSim(prevSim)]; }
+  const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==es){ delete USER.es2sim[normEs(prevEs)]; }
+  USER.es2sim[kEs]=sim; USER.sim2es[kSim]=es;
+  HISTORY=[...HISTORY,{es,sim,t:new Date().toISOString()}].slice(-10);
+  saveUser(USER); saveHistory(HISTORY);
+  $newEs.value=""; $newSim.value="";
+  renderResults([{scope:"USER", es, sim}]); refreshMeta();
+});
+
+/* ===================== SYNC (FORZADO) ===================== */
+function updateHostIndicators(){
+  const setTag = (tag, ok) => {
+    $hostState.textContent = tag;
+    $hostChip.classList.toggle("ok", ok===true);
+    $hostChip.classList.toggle("warn", ok===false);
+  };
+  fetch(BACKEND_URL, { method:"GET", mode:"cors", cache:"no-store" })
+    .then(r => r.ok ? r.json().then(()=>setTag("OK",true)) : setTag("Sin respuesta",false))
+    .catch(()=> setTag("Sin respuesta",false));
+}
+function endpoint(){ return BACKEND_URL; }
+function schedulePushToHost(){ clearTimeout(pushTimer); pushTimer=setTimeout(pushToHost, 600); }
+async function pushToHost(){
+  try{
+    const payload={ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY };
+    const r=await fetch(endpoint(),{ method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload), mode:"cors", credentials:"omit" });
+    if(!r.ok) throw new Error(r.status);
+    lastPushOk=true; dirtySinceLastPush=false;
+  }catch(e){ lastPushOk=false; }
+  updateHostIndicators();
+}
+async function pullFromHost(){
+  if(pulling) return; pulling=true;
+  try{
+    const r=await fetch(endpoint(),{method:"GET",mode:"cors",credentials:"omit"});
+    if(!r.ok) throw new Error(r.status);
+    const data=await r.json();
+    if(data && data.user){
+      USER=USER||defaultUserStore();
+      USER.es2sim=Object.assign({}, USER.es2sim||{}, data.user.es2sim||{});
+      USER.sim2es=Object.assign({}, USER.sim2es||{}, data.user.sim2es||{});
+      saveUser(USER);
+      if(Array.isArray(data.history)){ HISTORY=data.history.slice(-10); saveHistory(HISTORY); }
+      lastPushOk=true; dirtySinceLastPush=false;
+    }
+  }catch(e){ lastPushOk=false; }
+  finally{ pulling=false; updateHostIndicators(); refreshMeta(); }
+}
+function flushViaBeacon(){ if(!dirtySinceLastPush) return;
+  try{ const payload=JSON.stringify({ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY, flush:true });
+    const blob=new Blob([payload],{type:"application/json"}); navigator.sendBeacon(endpoint(), blob); lastPushOk=true; dirtySinceLastPush=false;
+  }catch(_){}
+}
+window.addEventListener("pagehide", flushViaBeacon);
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") flushViaBeacon(); });
+window.addEventListener("beforeunload", flushViaBeacon);
+
+/* ===================== TRADUCIR ===================== */
+function doTranslate(){
+  lastLearnedCount=0;
+  const inputRaw=($in.value||"").trim();
+  if(!inputRaw){ $out.textContent="--"; refreshMeta(); return; }
+
+  let resultText="";
+  if(CURRENT_DIR===DIR.ES2SIM){
+    const res=translateES2SIM(inputRaw);
+    resultText=res.text; lastLearnedCount=res.learnedFromGen||0;
+  }else{
+    const res=translateSIM2ES(inputRaw);
+    resultText=res.text;
+  }
+  $out.textContent=(resultText||"--");
+  refreshMeta();
+}
+
+/* ===================== META/ESTADO ===================== */
+function refreshMeta(){
+  const cats=Object.keys(DATA.vocabulario||{}); let totalCore=0; for(const c of cats) totalCore+=Object.keys(DATA.vocabulario[c]||{}).length;
+  const phCount = Object.values(DATA.phrasebook||{}).reduce((a,g)=>a+Object.keys(g).length,0);
+  const userES=Object.keys(USER.es2sim||{}).length, userSIM=Object.keys(USER.sim2es||{}).length;
+
+  if($meta)    $meta.textContent    = `Categorías: ${cats.length} · Entradas base: ${totalCore} · Phrasebook: ${phCount} · Usuario: ${userES}/${userSIM} (ES/SIM).`;
+  if($metaLex) $metaLex.textContent = `${totalCore} + ${userES}↑`;
+  if($stateLearnVal) $stateLearnVal.textContent = String(lastLearnedCount||0);
+
+  if($history){
+    const hist = (Array.isArray(HISTORY)?HISTORY:[]).slice(-10);
+    $history.innerHTML = hist.length
+      ? hist.map(h => `• <b>${h.es}</b> ↔ <i>${h.sim}</i> <span class="muted">(${new Date(h.t||Date.now()).toLocaleString()})</span>`).join("<br>")
+      : "--";
+  }
+
+  const confs=scanConflicts(); if($confCount) $confCount.textContent=String(confs.length);
+  if($confBadge){ $confBadge.classList.toggle("warn", confs.length>0); $confBadge.classList.toggle("ok", confs.length===0); }
+
+  if($strictBanner){ $strictBanner.style.display="none"; }
+
+  updateHostIndicators();
 }
 
 /* ===================== SIM CHAT ===================== */
-let currentPers="clasico";
-document.querySelectorAll(".chipbtn").forEach(b=>{
-  b.onclick=async()=>{
-    const p=b.dataset.pers;
-    if(p==="travieso"){
-      const phrase=prompt("Frase traviesa (pregunta al admin):");
-      if(!phrase) return;
-      const v=await API.verifyTravieso(phrase);
-      if(!v.ok) return alert("Frase incorrecta.");
-    }
-    document.querySelectorAll(".chipbtn").forEach(x=>x.classList.remove("active"));
-    b.classList.add("active"); currentPers=p;
-  };
+document.getElementById("personaTabs").addEventListener("click", (e)=>{
+  const b=e.target.closest(".tab"); if(!b) return;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  b.classList.add("active");
+  CURRENT_PERSONA = b.dataset.p || "clasico";
 });
-doc("simSend").onclick=async()=>{
-  const msg=(doc("simIn").value||"").trim(); if(!msg) return;
+$chatClear.addEventListener("click", ()=>{ $chatIn.value=""; $chatOut.textContent="Sistema: (sin respuesta ML)"; });
+
+$chatSend.addEventListener("click", async ()=>{
+  const msg=($chatIn.value||"").trim();
+  if(!msg){ $chatOut.textContent="Sistema: (escribe algo)"; return; }
+  $chatOut.textContent="Sistema: pensando…";
   try{
-    const r=await API.ml(msg,"chat");
-    appendSimChat("Tú", msg);
-    appendSimChat("Sim", `${r.simlish}\n(${r.es})`);
-    doc("simIn").value="";
-  }catch{ appendSimChat("Sistema","(sin respuesta ML)"); }
-};
-doc("simClear").onclick=()=>{ doc("simOut").textContent="--"; };
-function appendSimChat(who, text){
-  const box=doc("simOut");
-  if(box.textContent==="--") box.textContent="";
-  box.textContent += `${who}: ${text}\n\n`;
-  box.scrollTop = box.scrollHeight;
-}
+    const r=await fetch(BACKEND_URL+"ml/chat",{method:"POST",mode:"cors",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ message:msg, persona:CURRENT_PERSONA, params:{temperature:0.6, top_k:60}, context:{version:CORE_VERSION}})});
+    if(!r.ok){ throw new Error(String(r.status)); }
+    const data=await r.json();
+    const es = data.es || "(sin español)";
+    const sim = data.sim || "(sin simlish)";
+    $chatOut.textContent = `SIM: ${sim}\nES: ${es}`;
+  }catch(e){
+    $chatOut.textContent="Sistema: (sin respuesta ML)";
+  }
+});
 
-// Needs (indicadores visibles; lógica simple local)
-const Needs={H:6,D:6,I:6,E:6,S:6,V:6}; // 0-9
-function paintNeeds(){
-  paint("needH",Needs.H); paint("needD",Needs.D); paint("needI",Needs.I);
-  paint("needE",Needs.E); paint("needS",Needs.S); paint("needV",Needs.V);
-}
-function paint(id,val){ const el=doc(id); for(let i=0;i<=9;i++) el.classList.remove("g"+i); el.classList.add("g"+Math.max(0,Math.min(9,val))); }
-setInterval(()=>{
-  // Drenado base
-  Needs.D=Math.max(0,Needs.D - (Math.random()<0.4?1:0));
-  Needs.S=Math.max(0,Needs.S - (Math.random()<0.6?1:0));
-  // Energía nocturna baja más rápido (23-7)
-  const h=new Date().getHours();
-  if(h>=23 || h<7){ Needs.E=Math.max(0,Needs.E-1); }
-  // Hambre cada ~2h
-  if(Math.random()<0.2) Needs.H=Math.max(0,Needs.H-1);
-  // Higiene y Vejiga
-  if(Math.random()<0.15) Needs.I=Math.max(0,Needs.I-1);
-  if(Math.random()<0.25) Needs.V=Math.max(0,Needs.V-1);
-  paintNeeds();
-}, 60*1000); // cada minuto
-paintNeeds();
-
-/* ===================== POPUP BACKUP (Lunes y Viernes; reintenta cada hora) ===================== */
-const popup=doc("backupPopup"), $msg=doc("popupMsg");
-doc("popupDownload").onclick=()=>{ popup.style.display="none"; window.location.href="/backup/download"; };
-doc("popupCancel").onclick=async()=>{
-  popup.style.display="none";
-  try{ const r=await API.ml("no quiero ahora","simlish"); alert(r.simlish); }catch{}
-};
-function shouldShowPopup(){
-  const d=new Date(), day=d.getDay(); // 1=Lunes, 5=Viernes
-  if(!(day===1 || day===5)) return false;
-  const key="backupLastShown:"+d.toDateString();
-  const last=localStorage.getItem(key);
-  const now=Date.now();
-  if(!last || (now-Number(last)) > 60*60*1000){ localStorage.setItem(key,String(now)); return true; }
-  return false;
-}
-async function showPopupIfNeeded(){
-  if(!shouldShowPopup()) return;
-  try{
-    const r=await API.ml("haz un respaldo del diccionario ahora","simlish");
-    $msg.textContent = `Vrashoo: realiza un respaldo del diccionario.\n(${r.simlish})`;
-  }catch{ $msg.textContent = "¡Hora de respaldar tu diccionario!"; }
-  popup.style.display="grid";
-}
-setInterval(showPopupIfNeeded, 10*60*1000); // chequeo cada 10 min
-showPopupIfNeeded();
-
-/* ===================== INICIO ===================== */
-function doInit(){ pullFromHost(); refreshMeta(); updateHost(); }
-doInit();
-
-/* ===================== UTILS FIN ===================== */
+/* ===================== INIT ===================== */
+function init(){ setDir(DIR.ES2SIM); pullFromHost(); refreshMeta(); }
+init();
 </script>
 </body>
 </html>
