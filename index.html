@@ -3,329 +3,365 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Simlish Translator · ES ⇄ SIM · Core v3.1 + ML + SimChat</title>
-<meta name="description" content="Traductor ES ⇄ Simlish con aprendizaje estricto, panel admin, chat con Sim y controles ML.">
+<title>Simlish Translator · ES ⇄ SIM · Core v3.1 + ML</title>
+<meta name="description" content="Traductor bidireccional Español ⇄ Simlish con aprendizaje, backend y Sim Chat con ML.">
+<!-- CSP: self + backend (Render) -->
 <meta http-equiv="Content-Security-Policy"
   content="default-src 'self';
-           connect-src 'self' https://simlish-translator-backend.onrender.com https://simlish-translator-backend.onrender.com/mml/;
+           connect-src 'self' https://simlish-translator-backend.onrender.com;
            img-src 'self' https: data:;
            script-src 'self' 'unsafe-inline';
            style-src  'self' 'unsafe-inline';
            base-uri 'self';
            frame-ancestors 'self'">
 <style>
-:root{
-  --bg:#06141a;--bg2:#071e24;--ink:#e6f7f4;--muted:#93c5c9;--line:#0f2e35;
-  --accent:#22d3a6;--accent-strong:#10b981;--accent-warn:#eab308;--danger:#ef4444;--ok:#10b981;--tiktok:#38bdf8;
-}
-*{box-sizing:border-box} html,body{height:100%}
-body{margin:0;background:radial-gradient(1200px 800px at 15% -10%, #0a2b2f 0%, transparent 50%), linear-gradient(180deg,#041017,#06141a 35%, #06141a 100%);color:var(--ink);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;overflow-x:hidden}
-header{padding:20px 24px;border-bottom:1px solid var(--line);background:#06141acc;backdrop-filter:blur(6px)}
-h1{margin:0;font-size:1.25rem;display:flex;gap:10px;align-items:center}
-.pill{display:inline-block;background:var(--accent);color:#04201a;padding:2px 10px;border-radius:999px;font-weight:800;font-size:.8rem}
-.wrap{padding:20px 24px 28px;display:grid;gap:16px;max-width:1200px;margin:0 auto}
-.grid{display:grid;gap:16px} @media(min-width:1080px){.grid{grid-template-columns:1fr 1fr}}
-.card{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:16px}
-label{display:block;margin-bottom:8px}
-textarea,button,input,select{width:100%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#071b20;color:var(--ink)}
-textarea{min-height:170px;resize:vertical}
-.row{display:grid;gap:12px;grid-template-columns:1fr 1fr}
-.btn{cursor:pointer;transition:filter .15s ease, transform .05s ease;background:linear-gradient(180deg,var(--accent) 0%, var(--accent-strong) 100%);color:#052018;font-weight:800;border:none}
-.btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(1px)}
-.btn.sec{background:#071b20;border:1px solid var(--line);color:var(--ink);font-weight:600}
-.btn.warn{background:linear-gradient(180deg,#f59e0b 0%, #d97706 100%)}
-.btn.danger{background:linear-gradient(180deg,#ef4444 0%, #b91c1c 100%)}
-.small{font-size:.85rem} .muted{color:var(--muted)}
-.out{white-space:pre-wrap;min-height:170px;border-radius:12px;border:1px dashed var(--line);padding:10px;background:#06141a;word-break:break-word;overflow-wrap:anywhere}
-.dirbtn{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;width:auto;min-width:180px}
-.kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#071b20;border:1px solid #2a2f40;border-bottom-width:2px;border-radius:6px;padding:1px 6px}
-.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.state{display:flex;gap:8px;flex-wrap:wrap}
-.chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#071b20;padding:6px 10px;border-radius:999px}
-.ok{color:var(--ok)} .warn{color:var(--accent-warn)}
-/* Secreto admin + listas */
-.secret{max-width:1200px;margin:0 auto;padding:0 24px 12px}
-.list{display:grid;gap:8px;margin-top:8px}
-.item{display:grid;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#06181e}
-.item .row2{display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px}
-.item small{color:var(--muted)}
-.chips{display:flex;gap:8px;flex-wrap:wrap}
-.chipOpt{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#071b20;padding:6px 10px;border-radius:999px}
-/* Sim Chat */
-.chat{display:grid;gap:12px}
-.msg{border:1px solid var(--line);background:#071b20;border-radius:12px;padding:10px}
-.msg.you{background:#0a2329}
-.flex{display:flex;gap:8px;align-items:center}
-.grid2{display:grid;gap:8px;grid-template-columns:1fr auto}
-.personas{display:flex;gap:8px;flex-wrap:wrap}
-.persona{border:1px solid var(--line);background:#071b20;border-radius:999px;padding:6px 10px;cursor:pointer}
-.persona.active{outline:2px solid var(--accent)}
-.lock{opacity:.6}
-.badges{display:flex;gap:6px;flex-wrap:wrap}
-.need{padding:6px 10px;border-radius:999px;border:1px solid var(--line);font-weight:700}
-.need.red{background:#3b1212} .need.amber{background:#3b2a12} .need.green{background:#123b1a}
-/* ML controls lock */
-.overlayLock{position:relative}
-.overlayLock::after{content:"Bloqueado · toca para desbloquear";position:absolute;inset:0;background:rgba(0,0,0,.35);border-radius:16px;display:flex;align-items:center;justify-content:center;font-weight:800;letter-spacing:.3px}
-.overlayLock.unlocked::after{display:none}
-/* Modal simple */
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:1000}
-.modal > div{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:16px;max-width:640px;width:94%}
-.modal.show{display:flex}
+  :root{ --bg:#06141a; --bg2:#071e24; --ink:#e6f7f4; --muted:#93c5c9; --line:#0f2e35; --accent:#22d3a6; --accent-strong:#10b981; --accent-warn:#eab308; --danger:#ef4444; --tiktok:#38bdf8; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{ margin:0; background:radial-gradient(1200px 800px at 15% -10%, #0a2b2f 0%, transparent 50%), linear-gradient(180deg,#041017,#06141a 35%, #06141a 100%); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow-x:hidden; }
+  header{padding:20px 24px;border-bottom:1px solid var(--line);background:#06141acc;backdrop-filter:blur(6px)}
+  h1{margin:0;font-size:1.25rem;display:flex;gap:10px;align-items:center}
+  .pill{display:inline-block;background:var(--accent);color:#04201a;padding:2px 10px;border-radius:999px;font-weight:800;font-size:.8rem}
+  .wrap{padding:20px 24px 28px;display:grid;gap:16px;max-width:1100px;margin:0 auto}
+  .grid{display:grid;gap:16px}
+  @media(min-width:1000px){.grid{grid-template-columns:1fr 1fr}}
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:16px}
+  label{display:block;margin-bottom:8px}
+  textarea,button,input,select{width:100%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#071b20;color:var(--ink)}
+  textarea{min-height:170px;resize:vertical}
+  .row{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+  .btn{cursor:pointer;transition:filter .15s ease, transform .05s ease;background:linear-gradient(180deg,var(--accent) 0%, var(--accent-strong) 100%);color:#052018;font-weight:800;border:none}
+  .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(1px)}
+  .btn.sec{background:#071b20;border:1px solid var(--line);color:var(--ink);font-weight:600}
+  .btn.danger{background:linear-gradient(180deg,#f87171 0%, #ef4444 100%);color:#200}
+  .out{white-space:pre-wrap;min-height:170px;border-radius:12px;border:1px dashed var(--line);padding:10px;background:#06141a;word-break:break-word;overflow-wrap:anywhere}
+  .muted{color:var(--muted);font-size:.92rem}
+  .small{font-size:.85rem}
+  .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#071b20;padding:6px 10px;border-radius:999px}
+  .state{display:flex;gap:8px;flex-wrap:wrap}
+  .ok{color:var(--accent-strong)} .warn{color:var(--accent-warn)}
+  .dirbtn{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;width:auto;min-width:180px}
+  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#071b20;border:1px solid #2a2f40;border-bottom-width:2px;border-radius:6px;padding:1px 6px}
+  details summary{cursor:pointer}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  a{color:var(--tiktok);text-decoration:none;font-weight:600}
+  a:hover{text-decoration:underline}
+
+  /* Admin + resultados */
+  .secret{max-width:1100px;margin:0 auto;padding:0 24px 12px}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .tab{padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:#071b20;cursor:pointer}
+  .tab.active{background:var(--accent);color:#052018;font-weight:800;border:none}
+  .list{display:grid;gap:8px;margin-top:8px}
+  .item{display:grid;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#06181e}
+  .item .row2{display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px}
+  .item small{color:var(--muted)}
+
+  /* Sim Chat */
+  .chat{display:grid;gap:12px}
+  .chatlog{display:grid;gap:8px;max-height:320px;overflow:auto;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#06141a}
+  .bubble{padding:10px;border-radius:12px;background:#0a1f25;border:1px solid #0e2c33}
+  .bubble.you{background:#10262c}
+  .split{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+  .badges{display:flex;gap:8px;flex-wrap:wrap}
+  .badge{padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:#071b20}
+
+  /* Needs */
+  .needs{display:grid;gap:8px;grid-template-columns:repeat(6,1fr)}
+  .need{display:flex;align-items:center;justify-content:center;padding:8px;border-radius:10px;background:#0a1f25;border:1px solid #0e2c33;font-weight:700}
+  .need.low{background:#2a0f13;border-color:#3a151a}
+  .need.mid{background:#1f1a0a;border-color:#2d2610}
+  .need.high{background:#0f2a19;border-color:#173f26}
+
+  /* Popup respaldo */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0008;z-index:50}
+  .modal .content{max-width:520px;background:#071e24;border:1px solid var(--line);border-radius:16px;padding:16px}
 </style>
 </head>
 <body>
-<header>
-  <h1>Simlish Translator <span class="pill">ES ⇄ SIM · Core v3.1 + ML</span></h1>
-</header>
+  <header>
+    <h1>Simlish Translator <span class="pill">ES ⇄ SIM · Core v3.1 + ML</span></h1>
+  </header>
 
-<main class="wrap">
-  <!-- TRADUCTOR -->
-  <section class="grid">
-    <div class="card">
-      <div class="row" style="grid-template-columns:1fr auto">
-        <label for="in" style="margin:0;align-self:center">Entrada</label>
-        <button id="toggleDir" class="btn dirbtn" title="Cambiar dirección"><span id="dirLabel">ES → SIM</span></button>
-      </div>
-      <textarea id="in" placeholder="Escribe aquí."></textarea>
-      <div class="row" style="margin-top:12px">
-        <button id="translate" class="btn">Traducir</button>
-        <button id="clear" class="btn sec" title="Borrar texto">Limpiar</button>
-      </div>
-      <p class="muted small">Aprendizaje estricto: sincroniza y guarda automáticamente en el backend oficial.</p>
-      <div class="toolbar">
-        <button id="exportBtn" class="btn sec" title="Exportar vocab de usuario">Exportar JSON</button>
-      </div>
-      <div id="strictBanner" class="small muted" style="display:none"></div>
-    </div>
-
-    <div class="card">
-      <label for="out">Salida</label>
-      <div id="out" class="out" aria-live="polite">--</div>
-      <div class="row" style="margin-top:12px">
-        <button id="copy" class="btn">Copiar</button>
-        <button id="demo" class="btn sec" title="Ejemplo rápido">Ejemplo</button>
-      </div>
-      <div class="state" style="margin-top:12px">
-        <span class="chip">Modo: <b>Estricto</b></span>
-        <span class="chip">Dirección: <b id="stateDirVal">ES→SIM</b></span>
-        <span class="chip">Versión base: <b>3.1</b></span>
-        <span class="chip">Aprendidos (últ. op.): <b id="stateLearnVal">0</b></span>
-        <span class="chip" id="confBadge">Conflictos: <b id="confCount">0</b> <button id="confView" class="btn sec" style="padding:2px 8px">Ver</button></span>
-        <span class="chip">Lex: <b id="metaLex">-</b></span>
-        <span class="chip" id="hostChip" title="Estado de sincronización">Host: <b id="hostState">Listo</b></span>
-        <span class="chip" id="mmlChip" title="Estado del ML">ML: <b id="mmlState">—</b></span>
-      </div>
-    </div>
-  </section>
-
-  <!-- HISTORIAL + META -->
-  <section class="card">
-    <details open>
-      <summary><strong>Historial (últimos 10 aprendidos)</strong></summary>
-      <div id="history" class="small muted" style="margin-top:8px">--</div>
-    </details>
-    <details style="margin-top:12px">
-      <summary><strong>Gramática & Vocab cargados</strong></summary>
-      <div class="small muted" id="meta"></div>
-    </details>
-    <p class="muted small" style="margin-top:10px">
-      Tiempos: prefijos <span class="kbd">dra-</span>/<span class="kbd">to-</span>, sufijos <span class="kbd">-nu</span>/<span class="kbd">-ru</span> con auxiliar <span class="kbd">shoba</span>.
-    </p>
-  </section>
-
-  <!-- SIM CHAT -->
-  <section class="card">
-    <h3 style="margin:0 0 8px 0">Sim Chat</h3>
-    <div class="badges" id="needsBadges"></div>
-    <div class="personas" id="personas"></div>
-    <div class="chat" id="chatBox" style="margin-top:8px"></div>
-    <div class="grid2" style="margin-top:8px">
-      <input id="chatInput" placeholder="Habla con tu Sim… (ES o SIM)"/>
-      <div class="flex">
-        <select id="langMode">
-          <option value="both">Ver ES + SIM</option>
-          <option value="sim">Solo Simlish</option>
-          <option value="es">Solo Español</option>
-        </select>
-        <button id="sendMsg" class="btn" style="min-width:140px">Enviar</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- PANEL SECRETO (sobre el footer) -->
-  <div class="secret">
-    <div class="row" style="grid-template-columns:1fr auto">
-      <input id="secretPass" type="password" placeholder="" aria-label=""/>
-      <button id="secretUnlock" class="btn" style="width:auto">OK</button>
-    </div>
-
-    <div id="secretPanel" class="card" style="display:none;margin-top:10px">
-      <h3 style="margin:0 0 8px 0">Administrador</h3>
-
-      <!-- Editor -->
-      <div class="chips" style="margin-bottom:8px">
-        <label class="chipOpt"><input type="radio" name="mode" value="ES" checked> ES</label>
-        <label class="chipOpt"><input type="radio" name="mode" value="SIM"> SIM</label>
-      </div>
-      <div class="row">
-        <input id="searchQuery" placeholder="buscar…"/>
-        <button id="btnSearch" class="btn sec">Buscar</button>
-      </div>
-      <div id="searchInfo" class="small muted" style="margin-top:6px">Edita pares de <b>Usuario</b>. Para CORE, el botón Guardar crea una sobreescritura de Usuario. Puedes <b>Borrar</b> pares de Usuario.</div>
-      <div id="results" class="list"></div>
-
-      <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
-
-      <div class="row">
-        <input id="newEs" placeholder="Español"/>
-        <input id="newSim" placeholder="(generado aquí)"/>
-      </div>
-      <div class="row" style="grid-template-columns:auto auto 1fr">
-        <button id="btnGen" class="btn sec">Generar</button>
-        <button id="btnCreate" class="btn">Guardar</button>
-        <span class="small muted" id="genInfo"></span>
-      </div>
-
-      <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
-
-      <!-- Controles ML -->
-      <div id="mlCard" class="card overlayLock">
-        <h4 style="margin:0 0 8px 0">Controles ML</h4>
-        <div class="row"><label>Temperatura <input id="pTemp" type="range" min="0.1" max="1.5" step="0.05" value="0.6"/></label><label>Top-K <input id="pTopK" type="range" min="10" max="200" step="5" value="120"/></label></div>
-        <div class="row"><label>Top-P <input id="pTopP" type="range" min="0.5" max="1.0" step="0.02" value="0.92"/></label><label>Máx. tokens <input id="pMax" type="range" min="16" max="256" step="8" value="128"/></label></div>
+  <main class="wrap">
+    <section class="grid">
+      <div class="card">
+        <div class="row" style="grid-template-columns:1fr auto">
+          <label for="in" style="margin:0;align-self:center">Entrada</label>
+          <button id="toggleDir" class="btn dirbtn" title="Cambiar dirección"><span id="dirLabel">ES → SIM</span></button>
+        </div>
+        <textarea id="in" placeholder="Escribe aquí."></textarea>
+        <div class="row" style="margin-top:12px">
+          <button id="translate" class="btn">Traducir</button>
+          <button id="clear" class="btn sec" title="Borrar texto">Limpiar</button>
+        </div>
+        <p class="muted small">Aprendizaje estricto: sincroniza y guarda automáticamente en el backend oficial.</p>
         <div class="toolbar">
-          <button data-pre="safe" class="btn sec">Seguro</button>
-          <button data-pre="bal" class="btn sec">Balanceado</button>
-          <button data-pre="crea" class="btn sec">Creativo</button>
-          <button data-pre="opt" class="btn">Óptimo</button>
-          <button id="saveML" class="btn" style="margin-left:auto">Guardar</button>
+          <button id="exportBtn" class="btn sec" title="Exportar vocab de usuario">Exportar vocab</button>
         </div>
       </div>
 
-      <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
-
-      <!-- Travieso: clave efímera -->
-      <div class="row" style="grid-template-columns:auto 1fr">
-        <button id="genTravieso" class="btn warn">Generar clave Travieso</button>
-        <div class="flex">
-          <input id="traviesoKey" placeholder="(clave generada…)" readonly/>
-          <button id="copyTravieso" class="btn sec" style="width:auto">Copiar</button>
+      <div class="card">
+        <label for="out">Salida</label>
+        <div id="out" class="out" aria-live="polite">--</div>
+        <div class="row" style="margin-top:12px">
+          <button id="copy" class="btn">Copiar</button>
+          <button id="demo" class="btn sec" title="Ejemplo rápido">Ejemplo</button>
+        </div>
+        <div class="state" style="margin-top:12px">
+          <span class="chip">Modo: <b>Estricto</b></span>
+          <span class="chip">Dirección: <b id="stateDirVal">ES→SIM</b></span>
+          <span class="chip">Versión base: <b>3.1</b></span>
+          <span class="chip">Aprendidos (últ. op.): <b id="stateLearnVal">0</b></span>
+          <span class="chip" id="confBadge">Conflictos: <b id="confCount">0</b></span>
+          <span class="chip">Lex: <b id="metaLex">-</b></span>
+          <span class="chip" id="hostChip" title="Estado de backend">Host: <b id="hostState">…</b></span>
+          <span class="chip" id="mlChip" title="Estado del modelo">ML: <b id="mlState">…</b></span>
         </div>
       </div>
+    </section>
 
-      <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
-
-      <!-- Export -->
-      <div class="toolbar">
-        <button id="exportBtn2" class="btn sec">Exportar JSON</button>
+    <!-- Sim Chat (público) -->
+    <section class="card">
+      <h3 style="margin:0 0 8px">Sim Chat</h3>
+      <div class="badges" style="margin-bottom:8px">
+        <span class="badge">Personalidad:</span>
+        <button class="btn sec" id="pTierno" style="width:auto">Tierno</button>
+        <button class="btn sec" id="pTravieso" style="width:auto">Travieso 🔒</button>
+        <span class="small muted" id="personaInfo">Tierno activo.</span>
       </div>
+      <div class="needs" id="needsBar">
+        <div class="need" id="needHambre">Hambre</div>
+        <div class="need" id="needDiversion">Diversión</div>
+        <div class="need" id="needHigiene">Higiene</div>
+        <div class="need" id="needEnergia">Energía</div>
+        <div class="need" id="needSocial">Social</div>
+        <div class="need" id="needVejiga">Vejiga</div>
+      </div>
+      <div class="chat" style="margin-top:12px">
+        <div class="chatlog" id="chatlog"></div>
+        <div class="split">
+          <div>
+            <label>Tu mensaje (ES o SIM)</label>
+            <textarea id="chatInput" placeholder="Habla con el Sim…"></textarea>
+          </div>
+          <div>
+            <label>Respuesta (SIM ⇄ ES)</label>
+            <div class="out" id="chatResp">--</div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" id="chatSend">Enviar</button>
+          <button class="btn sec" id="chatClear">Limpiar chat</button>
+        </div>
+      </div>
+    </section>
 
-      <!-- Needs override -->
-      <details style="margin-top:12px">
-        <summary><strong>Ajustar necesidades</strong></summary>
-        <div class="row"><label>Hambre <input id="nHambre" type="range" min="0" max="100" step="1"/></label><label>Diversión <input id="nDiversion" type="range" min="0" max="100" step="1"/></label></div>
-        <div class="row"><label>Higiene <input id="nHigiene" type="range" min="0" max="100" step="1"/></label><label>Energía <input id="nEnergia" type="range" min="0" max="100" step="1"/></label></div>
-        <div class="row"><label>Social <input id="nSocial" type="range" min="0" max="100" step="1"/></label><label>Vejiga <input id="nVejiga" type="range" min="0" max="100" step="1"/></label></div>
-        <div class="toolbar"><button id="saveNeeds" class="btn">Guardar necesidades</button></div>
+    <!-- Historial & Meta -->
+    <section class="card">
+      <details open>
+        <summary><strong>Historial (últimos 10 aprendidos)</strong></summary>
+        <div id="history" class="small muted" style="margin-top:8px">--</div>
       </details>
+      <details style="margin-top:12px">
+        <summary><strong>Gramática & Vocab cargados</strong></summary>
+        <div class="small muted" id="meta"></div>
+      </details>
+      <p class="muted small" style="margin-top:10px">
+        Tiempos: prefijos <span class="kbd">dra-</span>/<span class="kbd">to-</span>, sufijos <span class="kbd">-nu</span>/<span class="kbd">-ru</span> con auxiliar <span class="kbd">shoba</span>.
+      </p>
+    </section>
+
+    <!-- ===== Panel secreto (sobre el footer) ===== -->
+    <div class="secret">
+      <div class="row" style="grid-template-columns:1fr auto">
+        <input id="secretPass" type="password" placeholder="" aria-label=""/>
+        <button id="secretUnlock" class="btn" style="width:auto">OK</button>
+      </div>
+
+      <div id="secretPanel" class="card" style="display:none;margin-top:10px">
+        <div class="tabs">
+          <div class="tab active" data-tab="dict">Diccionario</div>
+          <div class="tab" data-tab="ml">ML</div>
+          <div class="tab" data-tab="backup">Respaldo</div>
+        </div>
+
+        <!-- Diccionario -->
+        <div data-panel="dict">
+          <div class="badges" style="margin:8px 0">
+            <span class="badge">Buscar por:</span>
+            <label class="badge"><input type="radio" name="mode" value="ES" checked> ES</label>
+            <label class="badge"><input type="radio" name="mode" value="SIM"> SIM</label>
+          </div>
+          <div class="row">
+            <input id="searchQuery" placeholder="buscar…"/>
+            <button id="btnSearch" class="btn sec">Buscar</button>
+          </div>
+          <div id="searchInfo" class="small muted" style="margin-top:6px">Edita solo pares de <b>Usuario</b>. CORE es de solo lectura (si editas CORE, se crea sobreescritura en Usuario).</div>
+          <div id="results" class="list"></div>
+
+          <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+
+          <div class="row">
+            <input id="newEs" placeholder="Español"/>
+            <input id="newSim" placeholder="(generado aquí)"/>
+          </div>
+          <div class="row" style="grid-template-columns:auto auto 1fr">
+            <button id="btnGen" class="btn sec">Generar</button>
+            <button id="btnCreate" class="btn">Guardar</button>
+            <span class="small muted" id="dictMsg"></span>
+          </div>
+        </div>
+
+        <!-- ML -->
+        <div data-panel="ml" style="display:none">
+          <div class="badges" style="margin-bottom:8px">
+            <span class="badge">Estado ML: <b id="mlStateAdmin">…</b></span>
+          </div>
+          <div id="mlLock" style="margin-bottom:8px">
+            <p class="small muted">Para modificar controles ML, confirma tu contraseña.</p>
+            <div class="row" style="grid-template-columns:1fr auto">
+              <input id="mlPass" type="password" placeholder=""/>
+              <button id="mlUnlock" class="btn">Desbloquear</button>
+            </div>
+          </div>
+          <div id="mlControls" style="display:none">
+            <label>Temperatura <span id="tempVal" class="small muted"></span></label>
+            <input id="temp" type="range" min="0.1" max="1.5" step="0.05" value="0.7">
+            <label>Top-K <span id="topkVal" class="small muted"></span></label>
+            <input id="topk" type="range" min="10" max="200" step="5" value="120">
+            <label>Top-P <span id="toppVal" class="small muted"></span></label>
+            <input id="topp" type="range" min="0.1" max="1.0" step="0.05" value="0.9">
+            <div class="toolbar">
+              <button class="btn sec" data-preset="conservador">Conservador</button>
+              <button class="btn sec" data-preset="creativo">Creativo</button>
+              <button class="btn sec" data-preset="equilibrado">Equilibrado</button>
+              <button class="btn" data-preset="optimo">Óptimo</button>
+            </div>
+            <div class="row" style="grid-template-columns:auto auto 1fr">
+              <button id="mlSave" class="btn">Guardar</button>
+              <button id="mlLockBtn" class="btn sec">Bloquear</button>
+              <span class="small muted" id="mlMsg"></span>
+            </div>
+
+            <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+
+            <div class="row" style="grid-template-columns:1fr auto">
+              <div>
+                <label>Contraseña Travieso (frase corta SIM generada)</label>
+                <input id="traviesoKey" readonly placeholder="—"/>
+              </div>
+              <button id="regenTravieso" class="btn sec" title="Generar nueva clave traviesa">Regenerar</button>
+            </div>
+            <button id="copyTravieso" class="btn sec" style="margin-top:8px;width:auto">Copiar clave</button>
+          </div>
+        </div>
+
+        <!-- Respaldo -->
+        <div data-panel="backup" style="display:none">
+          <p class="small muted">Exporta el JSON de usuario (lo que está en backend) como respaldo.</p>
+          <button id="exportBtn2" class="btn sec">Exportar JSON</button>
+        </div>
+      </div>
+    </div>
+    <!-- ===== /Panel secreto ===== -->
+
+  </main>
+
+  <footer style="text-align:center;padding:16px;font-size:.85rem;color:var(--muted);border-top:1px solid var(--line);margin-top:24px">
+    <a href="https://www.tiktok.com/@musimiau?_t=ZM-8stssM0VX78&_r=1" target="_blank">@musimiau en TikTok🧡💜</a>
+    <br>
+    ☆ Creado por <b style="color:var(--accent)">&nbsp;Musi Dklja&nbsp;</b> (28 de Agosto del 2025)
+  </footer>
+
+  <!-- Modal Respaldo -->
+  <div class="modal" id="backupModal">
+    <div class="content">
+      <div class="small muted" id="backupPhrase">—</div>
+      <div class="row" style="margin-top:10px">
+        <button id="downloadBackup" class="btn">Descargar JSON</button>
+        <button id="cancelBackup" class="btn sec">Cancelar</button>
+      </div>
     </div>
   </div>
-</main>
-
-<footer style="text-align:center;padding:16px;font-size:.85rem;color:var(--muted);border-top:1px solid var(--line);margin-top:24px">
-  <a href="https://www.tiktok.com/@musimiau?_t=ZM-8stssM0VX78&_r=1" target="_blank">@musimiau en TikTok🧡💜</a><br>
-  ☆ Creado por <b style="color:var(--accent)">&nbsp;Musi Dklja&nbsp;</b> (28 de Agosto del 2025)
-</footer>
-
-<!-- Modal conflictos -->
-<div id="modalConf" class="modal"><div>
-  <h3 style="margin:0 0 8px 0">Conflictos</h3>
-  <div id="confList" class="small muted" style="margin:8px 0 12px 0;max-height:50vh;overflow:auto">—</div>
-  <div class="toolbar">
-    <button id="closeConf" class="btn sec">Cerrar</button>
-    <button id="gotoAdmin" class="btn">Ir a Admin</button>
-  </div>
-</div></div>
-
-<!-- Modal backup -->
-<div id="modalBackup" class="modal"><div>
-  <h3 style="margin:0 0 8px 0">Respaldo semanal</h3>
-  <div id="backupPhrase" class="muted" style="margin:8px 0 12px 0">—</div>
-  <div class="toolbar">
-    <button id="backupDownload" class="btn">Descargar JSON</button>
-    <button id="backupCancel" class="btn sec">Cancelar</button>
-  </div>
-</div></div>
 
 <script>
-/* ===================== CONFIG ===================== */
-const CORE_VERSION="3.1";
-const STRICT_MODE=true;
-const KEY_USER=`simlishLexiconUser:${CORE_VERSION}`;
-const KEY_HISTORY=`simlishLexiconHistory:${CORE_VERSION}`;
-const KEY_CFG=`simlishCfg:${CORE_VERSION}`;
-const KEY_TRAVIESO=`simlishTraviesoKey:${CORE_VERSION}`;
-const KEY_BACKUP_LOG=`simlishBackupLog:${CORE_VERSION}`;
-const DIR={ ES2SIM:"ES2SIM", SIM2ES:"SIM2ES" };
-let CURRENT_DIR=DIR.ES2SIM;
-let lastLearnedCount=0;
+/* ===================== CONFIG + ENDPOINTS ===================== */
+const CORE_VERSION = "3.1";
+const STRICT_MODE = true;
+const KEY_USER = `simlishLexiconUser:${CORE_VERSION}`;
+const KEY_HISTORY = `simlishLexiconHistory:${CORE_VERSION}`;
+const DIR = { ES2SIM:"ES2SIM", SIM2ES:"SIM2ES" };
+let CURRENT_DIR = DIR.ES2SIM;
+let lastLearnedCount = 0;
 
-/* Backends */
-const BACKEND_URL="https://simlish-translator-backend.onrender.com/";
-const MML_URL="https://simlish-translator-backend.onrender.com/mml/"; // si tu MML vive en otra URL, cámbiala aquí
+/* Backend único en Render (sync + ML en el mismo host) */
+const BACKEND_URL = "https://simlish-translator-backend.onrender.com";
+const MML_URL = BACKEND_URL + "/mml";
 
-/* Admin password: usamos hash FNV-1a para no exponer la clave en claro */
-const ADMIN_PASS_HASH=0x5b1567bb; // hash de "1908924672"
-function fnv1a(s){ let h=0x811c9dc5>>>0; for(const c of String(s)) h=Math.imul((h^c.charCodeAt(0))>>>0,0x01000193)>>>0; return h>>>0; }
-function checkPass(p){ return fnv1a(String(p))===ADMIN_PASS_HASH; }
+/* Admin password: guardada como hash SHA-256 (no mostramos la cadena) */
+const ADMIN_HASH = "7f62619786ad59b250343204be7eba3b6adf943139684e185ab7234e8dc7d774"; // no tocar
+async function sha256Hex(s){
+  const enc = new TextEncoder().encode(s);
+  const h = await crypto.subtle.digest('SHA-256', enc);
+  return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
 
-/* ===================== HELPERS ===================== */
-const deacc=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-const normEs=s=>deacc(String(s||"").toLowerCase()).trim();
-const normSim=s=>String(s||"").toLowerCase().trim();
+/* ===================== STORAGE ===================== */
+const deacc = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const normEs = s => deacc(String(s||"").toLowerCase()).trim();
+const normSim = s => String(s||"").toLowerCase().trim();
 
 function defaultUserStore(){ return { es2sim:{}, sim2es:{} }; }
 function loadUser(){ try{ return JSON.parse(localStorage.getItem(KEY_USER)||"") || defaultUserStore(); } catch{ return defaultUserStore(); } }
-function saveUser(store){ try{ localStorage.setItem(KEY_USER, JSON.stringify(store)); }catch{} dirtySinceLastPush=true; schedulePushToHost(); }
+function saveUser(store){ try{ localStorage.setItem(KEY_USER, JSON.stringify(store)); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
 function loadHistory(){ try{ return JSON.parse(localStorage.getItem(KEY_HISTORY)||"[]"); }catch{ return []; } }
-function saveHistory(list){ try{ localStorage.setItem(KEY_HISTORY, JSON.stringify(list.slice(-10))); }catch{} dirtySinceLastPush=true; schedulePushToHost(); }
-function loadCfg(){ try{ return JSON.parse(localStorage.getItem(KEY_CFG)||"{}"); }catch{ return {}; } }
-function saveCfg(cfg){ try{ localStorage.setItem(KEY_CFG, JSON.stringify(cfg)); }catch{} }
-let USER=loadUser(), HISTORY=loadHistory(), CFG=loadCfg();
+function saveHistory(list){ try{ localStorage.setItem(KEY_HISTORY, JSON.stringify(list.slice(-10))); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
+function canLearn(){ return true; }
 
-let pushTimer=null, pulling=false, lastPushOk=null, dirtySinceLastPush=false;
+let USER = loadUser();
+let HISTORY = loadHistory();
 
-/* ===================== CORE BASE (recortado; el backend aporta el masivo) ===================== */
-const DATA={
-  gramatica:{
-    orden:"SVO","adjetivo":"Después del sustantivo",
-    posesion:"Con 'ta' → Parshu ta meeba = mi pareja",
-    negacion:{nah:"no (simple)",nuvva:"nunca / negación fuerte"},
-    plural:"Usar -s / -as / -us según sonoridad",
-    comparativos:{moo:"más",minnu:"menos",firbs:"muy"},
-    tiempos:{auxiliar:"shoba = estar/ser",prefijos:{"dra-":"pasado","to-":"futuro"},sufijos:{"-nu":"presente","-ru":"en curso"}},
-    adverbios_tiempo:{nuvra:"ahora",yestu:"ayer",todra:"antes",tombru:"mañana",soonru:"pronto"}
+/* ===================== CORE (ligero) + FRASEBOOK ===================== */
+const DATA = {
+  "gramatica": {
+    "orden": "Sujeto – Verbo – Objeto (SVO)",
+    "adjetivo": "Después del sustantivo",
+    "posesion": "Con 'ta' → Parshu ta meeba = mi pareja",
+    "negacion": { "nah": "no (simple)", "nuvva": "nunca / negación fuerte" },
+    "plural": "Usar -s / -as / -us según sonoridad",
+    "comparativos": { "moo": "más", "minnu": "menos", "firbs": "muy" },
+    "tiempos": {
+      "auxiliar": "shoba = estar/ser",
+      "prefijos": { "dra-": "pasado", "to-": "futuro" },
+      "sufijos": { "-nu": "presente / en acto", "-ru": "aspecto en curso" }
+    },
+    "interrogativos": { "harva": "qué/cómo (general)", "kujan": "cómo (coloquial)" },
+    "conectores": {
+      "plubbu":"y/pero","ta":"de/que/para/a","wit":"con","palu":"para","entru":"entonces","kuzra":"porque","thooba":"aunque","sooba":"así que","hovra":"sin embargo","pleebu":"si / por ejemplo"
+    },
+    "adverbios_tiempo": { "nuvra":"ahora","yestu":"ayer","todra":"antes","tombru":"mañana","soonru":"pronto","dovra":"noche","sulah":"día" }
   },
-  vocabulario:{
-    pronombres:{"meeba":"yo","teeba":"tú","heeba":"él","sheba":"ella","weeba":"nosotros","da":"el / la / los / las"},
-    basicos:{"yibu":"sí","nah":"no","nuvva":"nunca","sul sul":"hola","su laa":"bienvenidos","dag dag":"chao","da vaa":"adiós",
-      "felnu":"perdón","firvu":"bien hecho","whazzu":"¿qué pasa?","frezzu":"felicidades","vrashoo":"ojalá","welbru":"bienvenido","oddru":"otro","gratvu":"gracias","prezooba":"bonito / hermoso","nibbu":"bebé"},
-    verbos_cotidianos:{"brazu":"cocinar","nomma":"comer","gluppa":"beber","delvu":"servir","klasha":"cortar","mashka":"masticar","travnu":"ir / ir a","gavna":"tener","dropra":"dejar caer","workru":"trabajar","zurnu":"ganas / ánimo","showru":"aparecer / mostrar(se)"},
-    clima:{"friznu":"frío","brasha":"caliente","skrashu":"rayo / relámpago"}
+  "vocabulario": {
+    "pronombres":{"meeba":"yo","teeba":"tú","heeba":"él","sheba":"ella","weeba":"nosotros","da":"el/la/los/las"},
+    "basicos":{"yibu":"sí","nah":"no","nuvva":"nunca","su laa":"bienvenidos","sul sul":"hola","dag dag":"chao","da vaa":"adiós","felnu":"perdón","firvu":"bien hecho","whazzu":"¿qué pasa?","frezzu":"felicidades","vrashoo":"ojalá","welbru":"bienvenido","oddru":"otro","gratvu":"gracias","prezooba":"bonito/hermoso","nibbu":"bebé"},
+    "verbos_cotidianos":{"brazu":"cocinar","nomma":"comer","gluppa":"beber","delvu":"servir","klasha":"cortar","mashka":"masticar","travnu":"ir/ir a","gavna":"tener","dropla":"dejar caer","workru":"trabajar","zurnu":"ganas/ánimo","showru":"aparecer/mostrar(se)"},
+    "clima":{"friznu":"frío","brasha":"caliente","shusha":"lluvia","skrashu":"rayo/relámpago"},
+    "custom":{"plarvoh":"mañana","nurplah":"juguemos"} /* tus claves anti-colisión */
   },
-  phrasebook:{
-    saludos:{"Su laa!":"¡Bienvenidos!","Sul sul!":"¡Hola!","Dag dag!":"¡Chao!","Da vaa!":"¡Adiós!"},
-    extras_calendario:{"Nuvra shoba Lurnas.":"Hoy es lunes.","Tombru shoba Tarnas.":"Mañana será martes.","Ta Mernas weeba playru Simms.":"El miércoles jugamos Sims."}
+  "phrasebook":{
+    "saludos":{"Su laa!":"¡Bienvenidos!","Sul sul!":"¡Hola!","Dag dag!":"¡Chao!"},
+    "extras_calendario":{"Nuvra shoba Lurnas.":"Hoy es lunes.","Tombru shoba Tarnas.":"Mañana será martes.","Ta Mernas weeba playru Simms.":"El miércoles jugamos Sims."}
   }
 };
-/* Índices iniciales */
+
+/* ===================== ÍNDICES ===================== */
 let CORE_ES2SIM=new Map(), CORE_SIM2ES=new Map(), PH_ES2SIM=new Map(), PH_SIM2ES=new Map();
 (function buildCore(){
   for(const entries of Object.values(DATA.vocabulario)){
     for(const [sim, es] of Object.entries(entries)){
-      const espNorm=normEs(es), simNorm=normSim(sim);
-      const variants=espNorm.split(/[\/ ,]/).map(s=>s.trim()).filter(Boolean);
+      const espNorm = normEs(es), simNorm = normSim(sim);
+      const variants = espNorm.split(/[\/ ,]/).map(s=>s.trim()).filter(Boolean);
       for(const v of variants){ if(!CORE_ES2SIM.has(v)) CORE_ES2SIM.set(v, sim); }
       if(!CORE_SIM2ES.has(simNorm)) CORE_SIM2ES.set(simNorm, es.split('/')[0]);
     }
@@ -338,21 +374,28 @@ let CORE_ES2SIM=new Map(), CORE_SIM2ES=new Map(), PH_ES2SIM=new Map(), PH_SIM2ES
   }
 })();
 
-/* ===================== MULTI PALABRAS ===================== */
+/* ===================== MULTI-PALABRAS ===================== */
 function getMultiSimKeys(){
-  const keys=new Set();
-  for(const entries of Object.values(DATA.vocabulario||{})){ for(const sim of Object.keys(entries||{})){ if(sim.includes(" ")) keys.add(sim.toLowerCase()); } }
-  for(const sim of Object.keys((USER&&USER.sim2es)||{})){ if(sim && sim.includes(" ")) keys.add(sim.toLowerCase()); }
-  return Array.from(keys).sort((a,b)=>b.length-a.length);
+  const keys = new Set();
+  for (const entries of Object.values(DATA.vocabulario||{})){
+    for (const sim of Object.keys(entries||{})){ if (sim.includes(" ")) keys.add(sim.toLowerCase()); }
+  }
+  for (const sim of Object.keys((USER&&USER.sim2es)||{})){ if (sim && sim.includes(" ")) keys.add(sim.toLowerCase()); }
+  return Array.from(keys).sort((a,b)=> b.length - a.length);
 }
 function compressMultiSim(text){
-  let out=text; const keys=getMultiSimKeys();
-  for(const key of keys){ const escaped=key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); const re=new RegExp(`\\b${escaped}\\b`,"gi"); out=out.replace(re,(m)=>m.replace(/\s+/g,"_")); }
+  let out = text;
+  const keys = getMultiSimKeys();
+  for (const key of keys){
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const re = new RegExp(`\\b${escaped}\\b`, "gi");
+    out = out.replace(re, (m)=> m.replace(/\s+/g, "_"));
+  }
   return out;
 }
-function expandMultiSimToken(token){ return token.replace(/_/g," "); }
+function expandMultiSimToken(token){ return token.replace(/_/g, " "); }
 
-/* ===================== UTILIDADES DICCIONARIO ===================== */
+/* ===================== CONFLICTOS ===================== */
 function currentSimOwner(sim){ const k=normSim(sim); if(USER.sim2es[k]) return {scope:"USER", es:USER.sim2es[k]}; if(CORE_SIM2ES.has(k)) return {scope:"CORE", es:CORE_SIM2ES.get(k)}; return null; }
 function preserveCase(o,r){ return /^[A-Z]/.test(o) ? r.charAt(0).toUpperCase()+r.slice(1) : r; }
 function ensureUniqueSim(sim, es){
@@ -366,12 +409,11 @@ function scanConflicts(){
   const seen=new Map(), conflicts=[];
   function addMap(obj){ for(const [es,sim] of Object.entries(obj)){ const s=normSim(sim), e=normEs(es); if(!seen.has(s)) seen.set(s,e); else if(seen.get(s)!==e) conflicts.push({sim:s,a:seen.get(s),b:e}); } }
   for(const entries of Object.values(DATA.vocabulario)){ for(const [sim,es] of Object.entries(entries)) addMap({[es]:sim}); }
-  addMap(USER.es2sim||{});
-  return conflicts;
+  addMap(USER.es2sim||{}); return conflicts;
 }
 
 /* ===================== TIEMPOS + GENERADOR + APRENDIZAJE ===================== */
-const adv=DATA.gramatica.adverbios_tiempo||{};
+const adv = DATA.gramatica.adverbios_tiempo || {};
 const PAST_LEX=new RegExp("\\b("+["ayer","antes","ya",adv.yestu,"anoche"].filter(Boolean).join("|")+")\\b","i");
 const FUT_LEX=new RegExp("\\b("+["mañana","manana","luego","después","despues","pronto",adv.tombru,"pasado mañana"].filter(Boolean).join("|")+")\\b","i");
 const PRES_LEX=new RegExp("\\b("+["hoy","ahora","enseguida",adv.nuvra].filter(Boolean).join("|")+")\\b","i");
@@ -382,22 +424,25 @@ const RE={ ira:/\b(voy|vas|va|vamos|van)\s+a\s+[a-záéíóúñü]+(ar|er|ir)\b/
 const TENSE={ PAST:"past", PRESENT:"present", FUTURE:"future", PROG:"progressive" };
 function detectTense(es){ if(RE.prog.test(es))return TENSE.PROG; if(FUT_LEX.test(es)||RE.ira.test(es)||RE.fut.test(es))return TENSE.FUTURE; if(PAST_LEX.test(es)||RE.pret.test(es)||RE.imp.test(es)||RE.pastIrreg.test(es))return TENSE.PAST; if(PRES_LEX.test(es))return TENSE.PRESENT; return TENSE.PRESENT; }
 function xorshift32(seed){ let x=seed|0; return ()=> (x^=x<<13,x^=x>>>17,x^=x<<5,(x>>>0)/4294967296); }
-function hashStr(s){ let h=2166136261>>>0; for(const c of s) h=Math.imul(h ^ c.charCodeAt(0), 16777619); return h>>>0; }
+function hashStr(s){ let h=2166136261>>>0; for(const c of s) h=Math.imul(h ^ c.charCodeAt(0),16777619); return h>>>0; }
 const SYLL=["su","la","noo","boo","zim","zam","sha","bah","voh","plar","gib","yib","flo","fru","doo","ka","ru","shi","ku","va","na","mo","ta","re","lo"];
 function synth(word){ const w=normEs(word).replace(/[^a-z0-9\s]/g,""); if(!w) return word; const rnd=xorshift32(hashStr(w)); let n=Math.max(2,Math.min(4,Math.ceil(w.length/4))); let out=[]; for(let i=0;i<n;i++) out.push(SYLL[Math.floor(rnd()*SYLL.length)]); let res=out.join(""); if(/r$/.test(w)) res+="ru"; if(/n$/.test(w)) res+="nu"; return ensureUniqueSim(res, word); }
 function learnPairs(pairs){
   let learned=0, stamped=[];
   for (const [esRaw, simRaw] of pairs){
-    const es=String(esRaw||"").trim(); const sim1=String(simRaw||"").trim();
+    const es=String(esRaw||"").trim();
+    const sim1=String(simRaw||"").trim();
     if(!es) continue;
     const sim=ensureUniqueSim(sim1 || synth(es), es);
     const kEs=normEs(es), kSim=normSim(sim);
     if(!kSim) continue;
+
     const prevSim=USER.es2sim[kEs]; if(prevSim && normSim(prevSim)!==kSim){ delete USER.sim2es[normSim(prevSim)]; }
     const prevEs=USER.sim2es[kSim]; if(prevEs && normEs(prevEs)!==kEs){ delete USER.es2sim[normEs(prevEs)]; }
+
     if(!USER.es2sim[kEs]){ USER.es2sim[kEs]=sim; learned++; }
     if(!USER.sim2es[kSim]){ USER.sim2es[kSim]=es; }
-    stamped.push({es,sim,t:new Date().toISOString()});
+    stamped.push({es, sim, t:new Date().toISOString()});
   }
   if(stamped.length){ HISTORY=[...HISTORY, ...stamped].slice(-10); saveHistory(HISTORY); }
   if(learned>0) saveUser(USER);
@@ -406,18 +451,21 @@ function learnPairs(pairs){
 
 /* ===================== TRADUCCIÓN ===================== */
 function tokensOf(text){ return text.match(/[\wáéíóúñü_]+|[.,;:!?]/gi) || [text]; }
+
 function translateES2SIM(text){
   const sentences=text.match(/[^.!?]+[.!?]?/g) || [text]; let newPairs=[];
   const out=sentences.map(raw=>{
     const s=raw.trim(); if(!s) return "";
-    const pb=PH_ES2SIM.get(normEs(s.replace(/[.!?]$/,""))); if(pb) return pb;
+
+    const pb = PH_ES2SIM.get(normEs(s.replace(/[.!?]$/,""))); if(pb) return pb;
+
     const hasNever=/\bnunca\b/i.test(s), hasNo=/\bno\b/i.test(s); const NEG=hasNever?"nuvva":(hasNo?"nah":"");
     const tense=detectTense(s); const toks=tokensOf(s); const simToks=[]; let injected=false;
     for(const t of toks){
       if(/^[.,;:!?]$/.test(t)){ simToks.push(t); continue; }
       const key=normEs(t); let sim=USER.es2sim[key] || CORE_ES2SIM.get(key);
       if(!sim){ sim=synth(t); newPairs.push([key, sim]); } else { sim=ensureUniqueSim(sim, t); }
-      const isVerb=["brazu","nomma","gluppa","delvu","klasha","mashka","travnu","gavna","dropra","workru","zurnu","showru"].includes(normSim(sim));
+      const isVerb=["brazu","nomma","gluppa","delvu","klasha","mashka","travnu","gavna","dropla","workru","zurnu","showru"].includes(normSim(sim));
       if(!injected && isVerb){
         let pref="", suf="", aux="shoba";
         if(tense===TENSE.PAST) pref="dra-"; else if(tense===TENSE.FUTURE) pref="to-"; else if(tense===TENSE.PRESENT) suf="-nu"; else if(tense===TENSE.PROG) suf="-ru";
@@ -429,33 +477,45 @@ function translateES2SIM(text){
       }
     }
     let outS=simToks.join(" ").replace(/\s+([.,;:!?])/g,"$1").replace(/\s+/g," ").trim();
-    if(outS) outS=outS.charAt(0).toUpperCase()+outS.slice(1);
-    return outS;
+    if(outS) outS=outS.charAt(0).toUpperCase()+outS.slice(1); return outS;
   }).join(" ");
   const learnedFromGen=learnPairs(newPairs);
   return { text: out, learnedFromGen };
 }
+
 function translateSIM2ES(text){
-  const sentences=text.match(/[^.!?]+[.!?]?/g) || [text];
-  const out=sentences.map(raw=>{
-    const s=raw.trim(); if(!s) return "";
-    const pb=PH_SIM2ES.get(normSim(s.replace(/[.!?]$/,""))); if(pb) return pb;
-    const pre=compressMultiSim(s), toks=tokensOf(pre), esToks=[];
+  const sentences = text.match(/[^.!?]+[.!?]?/g) || [text];
+  const out = sentences.map(raw=>{
+    const s = raw.trim(); if(!s) return "";
+
+    const pb = PH_SIM2ES.get(normSim(s.replace(/[.!?]$/,""))); if(pb) return pb;
+
+    const pre = compressMultiSim(s);
+    const toks = tokensOf(pre);
+    const esToks = [];
+
     for(const t0 of toks){
       if(/^[.,;:!?]$/.test(t0)){ esToks.push(t0); continue; }
-      const t=expandMultiSimToken(t0), key=normSim(t);
-      let es=USER.sim2es[key] || CORE_SIM2ES.get(key);
-      if(!es){ const base=key.replace(/^(dra-|to-)/,"").replace(/(-nu|-ru)$/,""); es=USER.sim2es[base] || CORE_SIM2ES.get(base); }
-      if(!es){ es=t; } esToks.push(es);
+      const t = expandMultiSimToken(t0);
+      const key = normSim(t);
+
+      let es = USER.sim2es[key] || CORE_SIM2ES.get(key);
+      if(!es){
+        const base = key.replace(/^(dra-|to-)/,"").replace(/(-nu|-ru)$/,"");
+        es = USER.sim2es[base] || CORE_SIM2ES.get(base);
+      }
+      if(!es){ es = t; }
+      esToks.push(es);
     }
-    let outS=esToks.join(" ").replace(/\s+([.,;:!?])/g,"$1").replace(/\s+/g," ").trim();
-    if(outS) outS=outS.charAt(0).toUpperCase()+outS.slice(1);
+
+    let outS = esToks.join(" ").replace(/\s+([.,;:!?])/g,"$1").replace(/\s+/g," ").trim();
+    if(outS) outS = outS.charAt(0).toUpperCase() + outS.slice(1);
     return outS;
   }).join(" ");
   return { text: out };
 }
 
-/* ===================== UI REFS ===================== */
+/* ===================== UI refs ===================== */
 const $in=document.getElementById("in"), $out=document.getElementById("out");
 const $btn=document.getElementById("translate"), $clear=document.getElementById("clear");
 const $copy=document.getElementById("copy"), $demo=document.getElementById("demo");
@@ -463,46 +523,38 @@ const $toggleDir=document.getElementById("toggleDir"), $dirLabel=document.getEle
 const $stateDirVal=document.getElementById("stateDirVal"), $stateLearnVal=document.getElementById("stateLearnVal");
 const $meta=document.getElementById("meta"), $metaLex=document.getElementById("metaLex");
 const $exportBtn=document.getElementById("exportBtn"), $history=document.getElementById("history");
-const $confBadge=document.getElementById("confBadge"), $confCount=document.getElementById("confCount"), $confView=document.getElementById("confView");
+const $confBadge=document.getElementById("confBadge"), $confCount=document.getElementById("confCount");
 const $hostChip=document.getElementById("hostChip"), $hostState=document.getElementById("hostState");
-const $mmlChip=document.getElementById("mmlChip"), $mmlState=document.getElementById("mmlState");
-const $strictBanner=document.getElementById("strictBanner");
+const $mlChip=document.getElementById("mlChip"), $mlState=document.getElementById("mlState");
 
 /* ===================== BOTONES BÁSICOS ===================== */
 function setDir(d){ CURRENT_DIR=d; const lbl=d===DIR.ES2SIM?"ES → SIM":"SIM → ES"; $dirLabel.textContent=lbl; if($stateDirVal) $stateDirVal.textContent=lbl.replace(" ",""); }
 $toggleDir.addEventListener("click", ()=> setDir(CURRENT_DIR===DIR.ES2SIM?DIR.SIM2ES:DIR.ES2SIM));
+
 $btn.addEventListener("click", doTranslate);
 $clear.addEventListener("click", ()=>{ $in.value=""; $out.textContent="--"; lastLearnedCount=0; refreshMeta(); });
 $copy.addEventListener("click", async ()=>{ const txt=$out.textContent.trim(); if(!txt||txt==="--"){ alert("No hay texto para copiar."); return; } try{ await navigator.clipboard.writeText(txt); $copy.textContent="¡Copiado!"; setTimeout(()=>{$copy.textContent="Copiar";},900); }
 catch{ const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); $copy.textContent="¡Copiado!"; } finally{ document.body.removeChild(ta); setTimeout(()=>{$copy.textContent="Copiar";},900); } } });
-$demo.addEventListener("click", ()=>{ if(CURRENT_DIR===DIR.ES2SIM){ $in.value="Ayer cociné sopa caliente, hoy la estoy sirviendo y mañana la voy a compartir."; } else { $in.value="Su laa, meeba shoba dra-brazu supa brasha. Delvu da supa wit spuvu."; } doTranslate(); });
+$demo.addEventListener("click", ()=>{ if(CURRENT_DIR===DIR.ES2SIM){ $in.value="Ayer cociné sopa caliente, hoy la estoy sirviendo y mañana la voy a compartir."; } else { $in.value="Sul sul! Meeba shoba dra-brazu supa brasha. Delvu da supa wit spuvu."; } doTranslate(); });
 
-/* ===================== EXPORT JSON ===================== */
-function exportJSON(){
-  const data=localStorage.getItem(KEY_USER) || "{}";
-  const blob=new Blob([data], {type:"application/json"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download=`simlish-vocab-user-v${CORE_VERSION}.json`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-$exportBtn.addEventListener("click", exportJSON);
-document.getElementById("exportBtn2").addEventListener("click", exportJSON);
+/* ===================== SYNC ===================== */
+let pushTimer = null, pulling = false, lastPushOk = null, dirtySinceLastPush = false;
 
-/* ===================== SYNC (FORZADO) ===================== */
 function updateHostIndicators(){
-  const setTag=(el,txt,ok)=>{ el.textContent=txt; const chip=el.parentElement; chip.classList.toggle("ok", ok===true); chip.classList.toggle("warn", ok===false); };
-  fetch(BACKEND_URL,{method:"GET",mode:"cors",cache:"no-store"})
-    .then(r=>r.ok?r.json().then(()=>setTag($hostState,"OK",true)):setTag($hostState,"Sin respuesta",false))
-    .catch(()=>setTag($hostState,"Sin respuesta",false));
-  fetch(MML_URL+"ping",{method:"GET",mode:"cors"}).then(r=>setTag($mmlState,r.ok?"OK":"Sin ML",r.ok)).catch(()=>setTag($mmlState,"Sin ML",false));
+  const setTag = (tag, ok) => {
+    $hostState.textContent = tag;
+    $hostChip.classList.toggle("ok", ok===true);
+    $hostChip.classList.toggle("warn", ok===false);
+  };
+  fetch(BACKEND_URL+"/", { method:"GET", mode:"cors", cache:"no-store" })
+    .then(r => r.ok ? r.json().then(()=>setTag("OK",true)) : setTag("Sin respuesta",false))
+    .catch(()=> setTag("Sin respuesta",false));
 }
-function endpoint(){ return BACKEND_URL; }
-function schedulePushToHost(){ clearTimeout(pushTimer); pushTimer=setTimeout(pushToHost,600); }
+function endpoint(){ return BACKEND_URL + "/"; }
+function schedulePushToHost(){ clearTimeout(pushTimer); pushTimer=setTimeout(pushToHost, 600); }
 async function pushToHost(){
   try{
-    const payload={ core_version:CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY };
+    const payload={ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY };
     const r=await fetch(endpoint(),{ method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload), mode:"cors", credentials:"omit" });
     if(!r.ok) throw new Error(r.status);
     lastPushOk=true; dirtySinceLastPush=false;
@@ -527,7 +579,7 @@ async function pullFromHost(){
   finally{ pulling=false; updateHostIndicators(); refreshMeta(); }
 }
 function flushViaBeacon(){ if(!dirtySinceLastPush) return;
-  try{ const payload=JSON.stringify({ core_version:CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY, flush:true });
+  try{ const payload=JSON.stringify({ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY, flush:true });
     const blob=new Blob([payload],{type:"application/json"}); navigator.sendBeacon(endpoint(), blob); lastPushOk=true; dirtySinceLastPush=false;
   }catch(_){}
 }
@@ -535,55 +587,87 @@ window.addEventListener("pagehide", flushViaBeacon);
 document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") flushViaBeacon(); });
 window.addEventListener("beforeunload", flushViaBeacon);
 
-/* ===================== CONF LIC TOS ===================== */
-const $modalConf=document.getElementById("modalConf"), $confList=document.getElementById("confList");
-$confView.addEventListener("click", ()=>{
-  const confs=scanConflicts();
-  if(!confs.length){ $confList.innerHTML="Sin conflictos 🎉"; }
-  else{
-    $confList.innerHTML=confs.map((c,i)=>`<div class="item"><div><b>${i+1}.</b> <span class="kbd">${c.sim}</span> ↔ <span class="kbd">${c.a}</span> / <span class="kbd">${c.b}</span></div><div class="small muted">Ve al admin y busca “${c.sim}” (SIM) o “${c.a} / ${c.b}” (ES) para resolver.</div></div>`).join("");
-  }
-  $modalConf.classList.add("show");
-});
-document.getElementById("closeConf").addEventListener("click", ()=> $modalConf.classList.remove("show"));
-document.getElementById("gotoAdmin").addEventListener("click", ()=>{
-  $modalConf.classList.remove("show");
-  document.getElementById("secretPass").focus();
-});
-
-/* ===================== HISTORIAL + META ===================== */
+/* ===================== UI META ===================== */
 function refreshMeta(){
   const cats=Object.keys(DATA.vocabulario||{}); let totalCore=0; for(const c of cats) totalCore+=Object.keys(DATA.vocabulario[c]).length;
-  const phCount=Object.values(DATA.phrasebook||{}).reduce((a,g)=>a+Object.keys(g).length,0);
+  const phCount = Object.values(DATA.phrasebook||{}).reduce((a,g)=>a+Object.keys(g).length,0);
   const userES=Object.keys(USER.es2sim||{}).length, userSIM=Object.keys(USER.sim2es||{}).length;
-  if($meta) $meta.textContent=`Categorías: ${cats.length} · Entradas base: ${totalCore} · Phrasebook: ${phCount} · Usuario: ${userES}/${userSIM} (ES/SIM).`;
-  if($metaLex) $metaLex.textContent=`${totalCore} + ${userES}↑`;
-  if($stateLearnVal) $stateLearnVal.textContent=String(lastLearnedCount||0);
-  const hist=(Array.isArray(HISTORY)?HISTORY:[]).slice(-10);
-  if($history){ $history.innerHTML = hist.length? hist.map(h=>`• <b>${h.es}</b> ↔ <i>${h.sim}</i> <span class="muted">(${new Date(h.t||Date.now()).toLocaleString()})</span>`).join("<br>") : "--"; }
+
+  if($meta)    $meta.textContent    = `Categorías: ${cats.length} · Entradas base: ${totalCore} · Phrasebook: ${phCount} · Usuario: ${userES}/${userSIM} (ES/SIM).`;
+  if($metaLex) $metaLex.textContent = `${totalCore} + ${userES}↑`;
+  if($stateLearnVal) $stateLearnVal.textContent = String(lastLearnedCount||0);
+
+  // Historial
+  if($history){
+    const hist = (Array.isArray(HISTORY)?HISTORY:[]).slice(-10);
+    if(!hist.length){ $history.textContent = "--"; }
+    else{
+      $history.innerHTML = hist.map(h => `• <b>${h.es}</b> ↔ <i>${h.sim}</i> <span class="muted">(${new Date(h.t||Date.now()).toLocaleString()})</span>`).join("<br>");
+    }
+  }
+
+  const confs=scanConflicts(); if($confCount) $confCount.textContent=String(confs.length);
+  if($confBadge){ $confBadge.classList.toggle("warn", confs.length>0); $confBadge.classList.toggle("ok", confs.length===0); }
+
+  // ML state
+  pingML();
 }
 
-/* ===================== SECRET UNLOCK ===================== */
-const $secretPanel=document.getElementById("secretPanel");
-document.getElementById("secretUnlock")?.addEventListener("click", ()=>{
-  const pass=(document.getElementById("secretPass")?.value||"").trim();
-  if(checkPass(pass)){ if($secretPanel) $secretPanel.style.display="block"; document.getElementById("secretPass").value=""; lockML(false); preloadNeeds(); }
-  else alert("Contraseña incorrecta.");
-});
+/* ===================== EXPORT JSON ===================== */
+async function exportUserJSON(){
+  // Baja lo que hay en backend, no solo local
+  try{
+    const r = await fetch(endpoint(),{method:"GET",mode:"cors"});
+    const data = r.ok ? await r.json() : {user:USER};
+    const payload = JSON.stringify(data.user||USER, null, 2);
+    const blob = new Blob([payload], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `simlish-user-backup-v${CORE_VERSION}-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  }catch(e){ alert("No se pudo exportar."); }
+}
+document.getElementById("exportBtn").addEventListener("click", exportUserJSON);
 
-/* ===================== EDITOR BUSCAR / GUARDAR / BORRAR ===================== */
-function listUserES(){ return Object.entries(USER.es2sim||{}); }
-function listUserSIM(){ return Object.entries(USER.sim2es||{}); }
-function resultsFromQuery(q,mode){
+/* ===================== ADMIN UNLOCK + TABS ===================== */
+const $secretPanel = document.getElementById("secretPanel");
+document.getElementById("secretUnlock").addEventListener("click", async ()=>{
+  const pass = (document.getElementById("secretPass").value||"").trim();
+  if(!pass) return;
+  const h = await sha256Hex(pass);
+  if(h===ADMIN_HASH){
+    $secretPanel.style.display="block";
+    document.getElementById("secretPass").value="";
+  }else{
+    alert("Contraseña incorrecta.");
+  }
+});
+const tabs = Array.from(document.querySelectorAll(".tab"));
+const panels = Array.from(document.querySelectorAll("[data-panel]"));
+tabs.forEach(t=> t.addEventListener("click", ()=>{
+  tabs.forEach(x=>x.classList.remove("active"));
+  t.classList.add("active");
+  const id = t.getAttribute("data-tab");
+  panels.forEach(p=> p.style.display = (p.getAttribute("data-panel")===id) ? "block" : "none");
+}));
+
+/* ===================== DICCIONARIO: buscar/editar/borrar/crear ===================== */
+function resultsFromQuery(q, mode){
   q=(q||"").trim().toLowerCase(); const items=[]; if(!q) return items;
   if(mode==="ES"){
     for(const [es,sim] of Object.entries(USER.es2sim||{})){ if(es.includes(q)) items.push({scope:"USER", es, sim}); }
-    for(const [key, sim] of CORE_ES2SIM.entries()){ if(key.includes(q)){ const es=key; if(!(USER.es2sim && USER.es2sim[es])) items.push({scope:"CORE", es, sim}); } }
+    for(const [key, sim] of CORE_ES2SIM.entries()){
+      if(key.includes(q)){
+        const es=key;
+        if(!(USER.es2sim && USER.es2sim[es])) items.push({scope:"CORE", es, sim});
+      }
+    }
   }else{
     for(const [simKey, es] of Object.entries(USER.sim2es||{})){ if(simKey.includes(q)) items.push({scope:"USER", es, sim:simKey}); }
     for(const [simKey, es] of CORE_SIM2ES.entries()){ if(simKey.includes(q)){ if(!(USER.sim2es && USER.sim2es[simKey])) items.push({scope:"CORE", es, sim:simKey}); } }
   }
-  return items.slice(0,200);
+  return items.slice(0,300);
 }
 function renderResults(list){
   const $results=document.getElementById("results"); if(!$results) return; $results.innerHTML="";
@@ -593,15 +677,17 @@ function renderResults(list){
     const isCore=item.scope==="CORE";
     const esId="es_"+Math.random().toString(36).slice(2), simId="sim_"+Math.random().toString(36).slice(2);
     div.innerHTML=`<div class="row2">
-        <input id="${esId}" value="${item.es}" ${/* Para CORE, permitimos editar → crea override */""}/>
-        <input id="${simId}" value="${item.sim}" />
+        <input id="${esId}" value="${item.es}" ${isCore?'':'title="Español (editable)"}" ${isCore?'disabled':''}/>
+        <input id="${simId}" value="${item.sim}" title="Simlish (editable)"/>
         <button class="btn" data-action="save">Guardar</button>
-        <button class="btn danger" data-action="del"${isCore?' disabled title="CORE no se borra"':""}>Borrar</button>
+        <button class="btn danger" data-action="del">Borrar</button>
       </div>
-      <small>${isCore? 'CORE · Guardar creará una sobreescritura en Usuario' : 'Usuario · Editable y Borrable'}</small>`;
+      <small>${isCore? 'CORE · No editable (si guardas, se crea sobreescritura en Usuario)' : 'Usuario · Editable'}</small>`;
     div.querySelector('[data-action="save"]').addEventListener('click', ()=>{
-      const esVal=document.getElementById(esId).value.trim(); let simVal=document.getElementById(simId).value.trim();
-      if(!esVal){ alert("Falta Español."); return; } if(!simVal){ simVal=synth(esVal); }
+      const esVal=document.getElementById(esId).value.trim();
+      let simVal=document.getElementById(simId).value.trim();
+      if(!esVal){ alert("Falta Español."); return; }
+      if(!simVal){ simVal=synth(esVal); }
       simVal=ensureUniqueSim(simVal, esVal);
       const kEs=normEs(esVal), kSim=normSim(simVal);
       const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==simVal){ delete USER.sim2es[normSim(prevSim)]; }
@@ -609,31 +695,34 @@ function renderResults(list){
       USER.es2sim[kEs]=simVal; USER.sim2es[kSim]=esVal;
       HISTORY=[...HISTORY,{es:esVal,sim:simVal,t:new Date().toISOString()}].slice(-10);
       saveUser(USER); saveHistory(HISTORY); renderResults([{scope:"USER", es:esVal, sim:simVal}]); refreshMeta();
+      document.getElementById("dictMsg").textContent="Guardado.";
+      setTimeout(()=>document.getElementById("dictMsg").textContent="",1200);
     });
-    div.querySelector('[data-action="del"]')?.addEventListener('click', ()=>{
-      if(isCore){ return; }
-      const es=document.getElementById(esId).value.trim(); const sim=document.getElementById(simId).value.trim();
-      const kEs=normEs(es), kSim=normSim(sim);
-      delete USER.es2sim[kEs]; delete USER.sim2es[kSim];
+    div.querySelector('[data-action="del"]').addEventListener('click', ()=>{
+      const esVal=document.getElementById(esId).value.trim();
+      const simVal=document.getElementById(simId).value.trim();
+      if(!confirm(`¿Borrar par:\nES: "${esVal}"\nSIM: "${simVal}" ?`)) return;
+      const kEs=normEs(esVal), kSim=normSim(simVal);
+      // solo borramos en Usuario
+      if(USER.es2sim[kEs]===simVal) delete USER.es2sim[kEs];
+      if(USER.sim2es[kSim]===esVal) delete USER.sim2es[kSim];
       saveUser(USER);
-      HISTORY=[...HISTORY,{es:`(DEL) ${es}`,sim:`(DEL) ${sim}`,t:new Date().toISOString()}].slice(-10); saveHistory(HISTORY);
-      div.remove(); refreshMeta();
+      renderResults([]); refreshMeta();
     });
     $results.appendChild(div);
   }
 }
 document.getElementById("btnSearch").addEventListener("click", ()=>{
-  const q=(document.getElementById("searchQuery")?.value)||"";
+  const q=(document.getElementById("searchQuery").value)||"";
   const mode=Array.from(document.querySelectorAll('input[name="mode"]')||[]).find(r=>r.checked)?.value || "ES";
   renderResults(resultsFromQuery(q, mode));
 });
-document.getElementById("btnGen")?.addEventListener("click", ()=>{
-  const es=(document.getElementById("newEs")?.value||"").trim(); if(!es){ alert("Escribe Español."); return; }
-  document.getElementById("newSim").value=ensureUniqueSim(synth(es), es);
+document.getElementById("btnGen").addEventListener("click", ()=>{
+  const es= (document.getElementById("newEs").value||"").trim(); if(!es){ alert("Escribe Español."); return; }
+  document.getElementById("newSim").value = ensureUniqueSim(synth(es), es);
 });
-document.getElementById("btnCreate")?.addEventListener("click", ()=>{
+document.getElementById("btnCreate").addEventListener("click", ()=>{
   const $newEs=document.getElementById("newEs"); const $newSim=document.getElementById("newSim");
-  if(!$newEs||!$newSim) return;
   const es=($newEs.value||"").trim(); let sim=($newSim.value||"").trim();
   if(!es){ alert("Debes escribir la palabra en Español."); return; }
   if(!sim){ sim=ensureUniqueSim(synth(es), es); }
@@ -643,195 +732,167 @@ document.getElementById("btnCreate")?.addEventListener("click", ()=>{
   USER.es2sim[kEs]=sim; USER.sim2es[kSim]=es;
   HISTORY=[...HISTORY,{es,sim,t:new Date().toISOString()}].slice(-10);
   saveUser(USER); saveHistory(HISTORY);
-  $newEs.value=""; $newSim.value=""; renderResults([{scope:"USER", es, sim}]); refreshMeta();
+  $newEs.value=""; $newSim.value="";
+  renderResults([{scope:"USER", es, sim}]); refreshMeta();
 });
+document.getElementById("exportBtn2").addEventListener("click", exportUserJSON);
 
-/* ===================== ML CONTROLS ===================== */
-const $mlCard=document.getElementById("mlCard");
-function lockML(lock=true){ $mlCard.classList.toggle("unlocked", !lock); if(lock){ $mlCard.classList.add("overlayLock"); } else { $mlCard.classList.remove("overlayLock"); } }
-$mlCard.addEventListener("click", (e)=>{ if($mlCard.classList.contains("overlayLock")){ const p=prompt("Contraseña admin:"); if(p && checkPass(p)){ lockML(false); } } });
-function readParams(){ return { temp:+document.getElementById("pTemp").value, topK:+document.getElementById("pTopK").value, topP:+document.getElementById("pTopP").value, maxTokens:+document.getElementById("pMax").value }; }
-function setParams({temp,topK,topP,maxTokens}){ if(temp)document.getElementById("pTemp").value=temp; if(topK)document.getElementById("pTopK").value=topK; if(topP)document.getElementById("pTopP").value=topP; if(maxTokens)document.getElementById("pMax").value=maxTokens; }
-document.querySelectorAll('#mlCard [data-pre]').forEach(b=>b.addEventListener('click', (ev)=>{
-  const t=ev.currentTarget.getAttribute('data-pre');
-  if(!$mlCard.classList.contains("unlocked")) return;
-  const presets={
-    safe:{temp:0.3,topK:20,topP:0.9,maxTokens:96},
-    bal:{temp:0.5,topK:50,topP:0.9,maxTokens:120},
-    crea:{temp:0.9,topK:100,topP:0.95,maxTokens:160},
-    opt:{temp:0.6,topK:120,topP:0.92,maxTokens:128} // Óptimo (tu favorito)
-  };
-  setParams(presets[t]);
-}));
-document.getElementById("saveML").addEventListener("click", ()=>{
-  if(!$mlCard.classList.contains("unlocked")) return;
-  CFG.ml=readParams(); saveCfg(CFG); alert("Parámetros ML guardados."); lockML(true);
+/* ===================== ML CONTROLS (lock) ===================== */
+const $mlStateAdmin=document.getElementById("mlStateAdmin");
+const $mlControls=document.getElementById("mlControls");
+document.getElementById("mlUnlock").addEventListener("click", async ()=>{
+  const p=(document.getElementById("mlPass").value||"").trim(); if(!p) return;
+  const h=await sha256Hex(p);
+  if(h===ADMIN_HASH){ $mlControls.style.display="block"; document.getElementById("mlPass").value=""; }
+  else alert("Contraseña incorrecta.");
 });
+document.getElementById("mlLockBtn").addEventListener("click", ()=>{ $mlControls.style.display="none"; });
 
-/* ===================== TRAVIESO KEY (ML o local) ===================== */
-async function mmlCall(path, payload){
+const $temp=document.getElementById("temp"), $topk=document.getElementById("topk"), $topp=document.getElementById("topp");
+const $tempVal=document.getElementById("tempVal"), $topkVal=document.getElementById("topkVal"), $toppVal=document.getElementById("toppVal");
+function syncLabels(){ $tempVal.textContent=$temp.value; $topkVal.textContent=$topk.value; $toppVal.textContent=$topp.value; }
+[temp,topk,topp].forEach(i=> i.addEventListener("input", syncLabels));
+syncLabels();
+
+document.querySelectorAll('[data-preset]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const p=btn.getAttribute('data-preset');
+    if(p==='conservador'){ $temp.value=0.3; $topk.value=40; $topp.value=0.8; }
+    if(p==='creativo'){ $temp.value=1.1; $topk.value=160; $topp.value=0.95; }
+    if(p==='equilibrado'){ $temp.value=0.7; $topk.value=120; $topp.value=0.9; }
+    if(p==='optimo'){ $temp.value=0.8; $topk.value=180; $topp.value=0.92; }
+    syncLabels();
+  });
+});
+document.getElementById("mlSave").addEventListener("click", async ()=>{
   try{
-    const r=await fetch(MML_URL+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload||{}),mode:"cors"});
-    if(!r.ok) throw new Error("ML error "+r.status);
-    return await r.json();
-  }catch(e){ return null; }
-}
-document.getElementById("genTravieso").addEventListener("click", async ()=>{
-  const out = await mmlCall("travieso-pass",{seed:Date.now(), params:CFG.ml||{}}) || {};
-  let phrase = (out && (out.simlish||out.pass||"")) || "";
-  if(!phrase){ // Fallback local
-    const rnd=xorshift32(hashStr("travieso"+Date.now()));
-    const bits=Array.from({length:3},()=>SYLL[Math.floor(rnd()*SYLL.length)]).join("");
-    phrase = bits+"-plubbu";
-  }
-  localStorage.setItem(KEY_TRAVIESO, JSON.stringify({pass:phrase, ts:Date.now()}));
-  document.getElementById("traviesoKey").value=phrase;
+    const payload={ temp:parseFloat($temp.value), top_k:parseInt($topk.value), top_p:parseFloat($topp.value) };
+    const r=await fetch(MML_URL+"/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    document.getElementById("mlMsg").textContent = r.ok ? "Guardado." : "Error";
+    setTimeout(()=>document.getElementById("mlMsg").textContent="",1200);
+    pingML();
+  }catch(_){ document.getElementById("mlMsg").textContent="Error"; setTimeout(()=>document.getElementById("mlMsg").textContent="",1200); }
+});
+
+/* ===================== TRAVIESO KEY (admin) ===================== */
+document.getElementById("regenTravieso").addEventListener("click", async ()=>{
+  const r=await fetch(MML_URL+"/travieso-pass",{method:"POST"});
+  const j = r.ok ? await r.json() : {key:""};
+  document.getElementById("traviesoKey").value = j.key || "";
 });
 document.getElementById("copyTravieso").addEventListener("click", async ()=>{
-  const v=document.getElementById("traviesoKey").value; if(!v){ alert("No hay clave."); return; }
-  try{ await navigator.clipboard.writeText(v); } catch{}
+  const v=document.getElementById("traviesoKey").value||""; if(!v) return;
+  try{ await navigator.clipboard.writeText(v); }catch(_){}
 });
 
-/* ===================== NEEDS ===================== */
-const NEEDS={ hambre:70, diversion:60, higiene:80, energia:80, social:50, vejiga:80, noSleepPenaltyUntil:0 };
-function preloadNeeds(){ try{ const n=CFG.needs||{}; Object.assign(NEEDS,n); }catch{} renderNeeds(); fillSliders(); }
-function renderNeeds(){
-  const $b=document.getElementById("needsBadges"); if(!$b) return;
-  function col(v){ if(v<35)return"red"; if(v<70)return"amber"; return"green"; }
-  $b.innerHTML=[
-    ["hambre","🍲"],["diversion","🎮"],["higiene","🧼"],["energia","💤"],["social","💬"],["vejiga","🚻"]
-  ].map(([k,emoji])=>`<span class="need ${col(NEEDS[k])}" title="${k}">${emoji} ${k}: ${NEEDS[k]}%</span>`).join(" ");
+/* ===================== ML PING ===================== */
+async function pingML(){
+  const set = (ok)=>{ $mlState.textContent = ok?"OK":"Sin ML"; $mlChip.classList.toggle("ok", ok); $mlChip.classList.toggle("warn", !ok); if($mlStateAdmin) $mlStateAdmin.textContent = ok?"OK":"Sin ML"; };
+  try{
+    const r = await fetch(MML_URL+"/ping",{method:"GET"});
+    set(r.ok);
+  }catch(_){ set(false); }
 }
-function fillSliders(){
-  ["Hambre","Diversion","Higiene","Energia","Social","Vejiga"].forEach(n=>{
-    const el=document.getElementById("n"+n); if(el) el.value=NEEDS[n.toLowerCase()];
-  });
-}
-document.getElementById("saveNeeds").addEventListener("click", ()=>{
-  ["hambre","diversion","higiene","energia","social","vejiga"].forEach(k=>{
-    const el=document.getElementById("n"+k[0].toUpperCase()+k.slice(1)); if(el) NEEDS[k]=+el.value;
-  });
-  CFG.needs=Object.assign({},NEEDS); saveCfg(CFG); renderNeeds(); alert("Necesidades guardadas.");
+
+/* ===================== Sim Chat ===================== */
+let persona="tierno";
+const $personaInfo=document.getElementById("personaInfo");
+document.getElementById("pTierno").addEventListener("click", ()=>{
+  if(persona!=="tierno" && !confirm("¿Cambiar de personalidad ahora?")) return;
+  persona="tierno"; $personaInfo.textContent="Tierno activo.";
 });
-/* Drenado básico (muy ligero; el ML puede leer estos valores si tu server los expone) */
-setInterval(()=>{
-  // Hambre: si >2h sin comer (no modelamos comidas reales aquí), drenado suave
-  NEEDS.hambre=Math.max(0,NEEDS.hambre-0.3);
-  // Diversión: aleatorio
-  NEEDS.diversion=Math.max(0,NEEDS.diversion-(0.15+Math.random()*0.2));
-  // Higiene: 4 veces al día → drenado moderado
-  NEEDS.higiene=Math.max(0,NEEDS.higiene-0.2);
-  // Energía: baja más rápido de noche (23-7)
-  const hr=(new Date()).getHours();
-  const night = (hr>=23 || hr<7), baseDrop=night?0.5:0.25;
-  const penalty = (Date.now()<NEEDS.noSleepPenaltyUntil)?0.15:0;
-  NEEDS.energia=Math.max(0,NEEDS.energia-(baseDrop+penalty));
-  // Social: sube cuando hablas
-  // Vejiga: normal
-  NEEDS.vejiga=Math.max(0,NEEDS.vejiga-0.22);
-  renderNeeds();
-}, 60000);
+document.getElementById("pTravieso").addEventListener("click", async ()=>{
+  if(persona!=="travieso" && !confirm("¿Seguro que quieres activar al Travieso? Te puede salir con cosas traviesas…")) return;
+  const k = prompt("Clave traviesa (SIM):")||"";
+  try{
+    const r=await fetch(MML_URL+"/travieso-check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:k})});
+    if(r.ok){ persona="travieso"; $personaInfo.textContent="Travieso activo."; }
+    else alert("Clave incorrecta o expirada.");
+  }catch(_){ alert("No se pudo validar la clave."); }
+});
 
-/* ===================== SIM CHAT ===================== */
-const PERSONAS=[
-  {id:"clasico", name:"Clásico", tone:"neutral"},
-  {id:"tierno", name:"Tierno", tone:"tierno"},
-  {id:"sabio", name:"Sabio", tone:"sabio"},
-  {id:"payasin", name:"Payasín", tone:"payasin"},
-  {id:"travieso", name:"Travieso", tone:"travieso", locked:true}
-];
-let CURRENT_PERSONA="clasico";
-function renderPersonas(){
-  const $p=document.getElementById("personas");
-  $p.innerHTML=PERSONAS.map(p=>`<div class="persona ${p.id===CURRENT_PERSONA?'active':''} ${p.locked?'lock':''}" data-id="${p.id}">${p.name}${p.locked?' 🔒':''}</div>`).join("");
-  $p.querySelectorAll('.persona').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const id=el.getAttribute('data-id'); if(id===CURRENT_PERSONA) return;
-      if(id==="travieso"){
-        if(!confirm("¿Seguro que quieres hablar con Travieso?")) return;
-        const key=prompt("Clave Travieso:");
-        try{
-          const saved=JSON.parse(localStorage.getItem(KEY_TRAVIESO)||"{}");
-          if(!saved.pass || key!==saved.pass){ alert("Clave incorrecta o expirada."); return; }
-        }catch{ alert("Clave no disponible."); return; }
-      }
-      CURRENT_PERSONA=id;
-      renderPersonas();
-    });
-  });
-}
-renderPersonas();
-
-function pushMsg(role, simlish, spanish){
-  const $c=document.getElementById("chatBox");
-  const lang=document.getElementById("langMode").value;
-  let html="";
-  if(lang==="both") html=`<div><div><b>SIM:</b> ${simlish}</div><div class="muted small"><b>ES:</b> ${spanish}</div></div>`;
-  else if(lang==="sim") html=`<div>${simlish}</div>`;
-  else html=`<div>${spanish}</div>`;
-  const div=document.createElement("div");
-  div.className="msg "+(role==="you"?"you":"");
-  div.innerHTML=html;
-  $c.appendChild(div);
-  $c.scrollTop=$c.scrollHeight;
-}
-/* prompt builder para el ML */
-function moodFromNeeds(){
-  let mood=[];
-  if(NEEDS.hambre<30) mood.push("hambre");
-  if(NEEDS.diversion<30) mood.push("aburrido");
-  if(NEEDS.higiene<25) mood.push("sucio");
-  if(NEEDS.energia<25) mood.push("cansado");
-  if(NEEDS.social<30) mood.push("solitario");
-  if(NEEDS.vejiga<20) mood.push("apremiado");
-  return mood.join(", ")||"equilibrado";
-}
-function personaStyle(id){
-  const m={ clasico:"neutral simpático", tierno:"dulce, cariñoso, onomatopeyas suaves", sabio:"calmo, proverbial, metáforas breves", payasin:"chistoso, bromas ligeras, rimas", travieso:"pillo, picarón, coquetón sin vulgaridad" };
-  return m[id]||"neutral simpático";
-}
-
-async function simReply(userText){
-  // Llamar ML
-  const params=CFG.ml || {temp:0.6, topK:120, topP:0.92, maxTokens:128};
-  const payload={ message:userText, persona:CURRENT_PERSONA, mood:moodFromNeeds(), needs:NEEDS, params };
-  const res=await mmlCall("chat", payload);
-  let sim=res && (res.simlish||""); let es=res && (res.spanish||"");
-  if(!sim || !es){
-    // Fallback local: traducción + condimento de persona
-    const fromSim=/[a-z]/i.test(userText) && (userText.split(" ").some(w=>CORE_SIM2ES.has(normSim(w))||USER.sim2es[normSim(w)]));
-    if(fromSim){
-      es=translateSIM2ES(userText).text;
-      sim=userText;
-    }else{
-      sim=translateES2SIM(userText).text;
-      es=userText;
-    }
-    // condimento persona
-    const tone=personaStyle(CURRENT_PERSONA);
-    if(CURRENT_PERSONA==="tierno") sim=sim+" nyuu~"; 
-    if(CURRENT_PERSONA==="payasin") sim=sim+" hehe!";
-    if(CURRENT_PERSONA==="travieso") sim=sim+" shishi ;)";
+const $chatlog=document.getElementById("chatlog"), $chatInput=document.getElementById("chatInput"), $chatResp=document.getElementById("chatResp");
+function logBubble(text, you=false){ const div=document.createElement("div"); div.className="bubble"+(you?" you":""); div.textContent=text; $chatlog.appendChild(div); $chatlog.scrollTop=$chatlog.scrollHeight; }
+document.getElementById("chatClear").addEventListener("click", ()=>{ $chatlog.innerHTML=""; $chatResp.textContent="--"; });
+document.getElementById("chatSend").addEventListener("click", async ()=>{
+  const msg=($chatInput.value||"").trim(); if(!msg){ return; }
+  logBubble(msg, true); $chatInput.value=""; $chatResp.textContent="Pensando…";
+  try{
+    const r=await fetch(MML_URL+"/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ persona, text:msg, needs:needsState() })});
+    const j=r.ok ? await r.json() : {simlish:"(sin respuesta)", spanish:"(sin respuesta)"};
+    $chatResp.textContent = `SIM: ${j.simlish}\nES: ${j.spanish}`;
+    logBubble(`SIM: ${j.simlish}\nES: ${j.spanish}`, false);
+  }catch(_){
+    $chatResp.textContent = "Sin ML";
   }
-  // Social sube al hablar
-  NEEDS.social=Math.min(100,NEEDS.social+3);
-  renderNeeds();
-  return {sim, es};
-}
-
-document.getElementById("sendMsg").addEventListener("click", async ()=>{
-  const txt=(document.getElementById("chatInput").value||"").trim(); if(!txt) return;
-  pushMsg("you", txt, txt);
-  const {sim, es}=await simReply(txt);
-  pushMsg("sim", sim, es);
-  document.getElementById("chatInput").value="";
 });
 
-/* ===================== TRADUCIR BTN ===================== */
+/* ===================== NEEDS (visual) ===================== */
+const needs = {
+  hambre: {min:0,max:100,val:70},
+  diversion:{min:0,max:100,val:60},
+  higiene:{min:0,max:100,val:80},
+  energia:{min:0,max:100,val:75},
+  social:{min:0,max:100,val:50},
+  vejiga:{min:0,max:100,val:65}
+};
+function needsState(){ return Object.fromEntries(Object.entries(needs).map(([k,o])=>[k,o.val])); }
+function paintNeed(el,val){
+  el.textContent = el.dataset.label;
+  el.classList.remove("low","mid","high");
+  if(val<34) el.classList.add("low"); else if(val<67) el.classList.add("mid"); else el.classList.add("high");
+}
+function renderNeeds(){
+  paintNeed(document.getElementById("needHambre").dataset.label?document.getElementById("needHambre"):Object.assign(document.getElementById("needHambre"),{dataset:{label:"Hambre"}}), needs.hambre.val);
+  paintNeed(document.getElementById("needDiversion").dataset.label?document.getElementById("needDiversion"):Object.assign(document.getElementById("needDiversion"),{dataset:{label:"Diversión"}}), needs.diversion.val);
+  paintNeed(document.getElementById("needHigiene").dataset.label?document.getElementById("needHigiene"):Object.assign(document.getElementById("needHigiene"),{dataset:{label:"Higiene"}}), needs.higiene.val);
+  paintNeed(document.getElementById("needEnergia").dataset.label?document.getElementById("needEnergia"):Object.assign(document.getElementById("needEnergia"),{dataset:{label:"Energía"}}), needs.energia.val);
+  paintNeed(document.getElementById("needSocial").dataset.label?document.getElementById("needSocial"):Object.assign(document.getElementById("needSocial"),{dataset:{label:"Social"}}), needs.social.val);
+  paintNeed(document.getElementById("needVejiga").dataset.label?document.getElementById("needVejiga"):Object.assign(document.getElementById("needVejiga"),{dataset:{label:"Vejiga"}}), needs.vejiga.val);
+}
+renderNeeds();
+
+/* ===================== POPUP RESPALDO (Lunes/Viernes por hora) ===================== */
+const modal=document.getElementById("backupModal"), backupPhrase=document.getElementById("backupPhrase");
+function openModal(){ modal.style.display="flex"; }
+function closeModal(){ modal.style.display="none"; }
+function isMonday(date){ return date.getDay()===1; }
+function isFriday(date){ return date.getDay()===5; }
+function rememberLastTimeKey(){ return "backup-last-time"; }
+async function maybeShowBackupPrompt(){
+  const now=new Date();
+  if(!(isMonday(now)||isFriday(now))) return;
+  const k=rememberLastTimeKey();
+  const last=localStorage.getItem(k);
+  const hour=now.getHours();
+  const sig=`${now.toDateString()}-${hour}`;
+  if(last===sig) return; // ya se mostró esta hora
+  try{
+    const r=await fetch(MML_URL+"/generate",{method:"POST"});
+    const j=r.ok?await r.json():{simlish:"Vrashoo ta backup!",spanish:"¡Ojalá hagas un respaldo!"};
+    backupPhrase.textContent = `SIM: ${j.simlish}\nES: ${j.spanish}`;
+  }catch(_){
+    backupPhrase.textContent = "SIM: Vrashoo ta backup!\nES: ¡Ojalá hagas un respaldo!";
+  }
+  openModal();
+  localStorage.setItem(k, sig);
+}
+document.getElementById("downloadBackup").addEventListener("click", ()=>{ closeModal(); exportUserJSON(); });
+document.getElementById("cancelBackup").addEventListener("click", async ()=>{
+  try{
+    const r=await fetch(MML_URL+"/negativa",{method:"POST"});
+    const j=r.ok?await r.json():{word:"nah-zabba"};
+    alert(`Negativa: ${j.word}`);
+  }catch(_){ alert("Negativa: nah-zabba"); }
+  closeModal();
+});
+
+/* ===================== TRADUCIR ===================== */
 function doTranslate(){
   lastLearnedCount=0;
   const inputRaw=($in.value||"").trim();
   if(!inputRaw){ $out.textContent="--"; refreshMeta(); return; }
+
   let resultText="";
   if(CURRENT_DIR===DIR.ES2SIM){
     const res=translateES2SIM(inputRaw);
@@ -844,35 +905,8 @@ function doTranslate(){
   refreshMeta();
 }
 
-/* ===================== BACKUP POPUP ===================== */
-const $modalBackup=document.getElementById("modalBackup"), $backupPhrase=document.getElementById("backupPhrase");
-function shouldPromptBackup(){
-  const now=new Date(), dow=now.getDay(); // 0=dom,1=lun,...,5=vie
-  if(!(dow===1 || dow===5)) return false;
-  const key=KEY_BACKUP_LOG+"::"+now.toDateString();
-  const last=+localStorage.getItem(key)||0;
-  return (Date.now()-last) > 60*60*1000; // cada hora
-}
-async function showBackupPrompt(){
-  let phrase=""; const params=CFG.ml||{};
-  const r=await mmlCall("generate",{topic:"respaldo", params})||{};
-  phrase = (r.simlish&&r.spanish)? `${r.simlish}<br><span class="small muted">${r.spanish}</span>` : `Vrashoo ta backupu!<br><span class="small muted">Ojalá hagas el respaldo ahora mismo.</span>`;
-  $backupPhrase.innerHTML=phrase;
-  $modalBackup.classList.add("show");
-}
-document.getElementById("backupDownload").addEventListener("click", ()=>{ $modalBackup.classList.remove("show"); exportJSON(); localStorage.setItem(KEY_BACKUP_LOG+"::"+(new Date()).toDateString(), String(Date.now())); });
-document.getElementById("backupCancel").addEventListener("click", ()=>{ const neg=["nah","nuvva","nooba","blar-nah"]; document.getElementById("backupCancel").textContent=neg[Math.floor(Math.random()*neg.length)]; setTimeout(()=>{ $modalBackup.classList.remove("show"); },300); });
-
 /* ===================== INIT ===================== */
-function init(){
-  setDir(DIR.ES2SIM);
-  pullFromHost();
-  refreshMeta();
-  updateHostIndicators();
-  renderNeeds();
-  // Backup prompt scheduler
-  if(shouldPromptBackup()) showBackupPrompt();
-}
+function init(){ setDir(DIR.ES2SIM); pullFromHost(); refreshMeta(); pingML(); maybeShowBackupPrompt(); }
 init();
 </script>
 </body>
