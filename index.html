@@ -197,9 +197,10 @@ let lastLearnedCount = 0;
 /* Backend forzado */
 const BACKEND_URL = "https://simlish-translator-backend.onrender.com/";
 let pushTimer = null, pulling = false, lastPushOk = null, dirtySinceLastPush = false;
+let autoPullTimer = null;
 
 /* Admin password: se compara contra hash (no exponemos la clave en texto) */
-const PASS_SHA256_HEX = "7f62619786ad59b250343204be7eba3b6adf943139684e185ab7234e8dc7d774"; // hash de tu clave
+const PASS_SHA256_HEX = "7f62619786ad59b250343204be7eba3b6adf943139684e185ab7234e8dc7d774";
 async function verifyPass(pass){
   if(!window.crypto?.subtle) return false;
   const enc = new TextEncoder().encode(pass);
@@ -294,9 +295,9 @@ let CORE_ES2SIM=new Map(), CORE_SIM2ES=new Map(), PH_ES2SIM=new Map(), PH_SIM2ES
   for(const entries of Object.values(DATA.vocabulario)){
     for(const [sim, es] of Object.entries(entries)){
       const espNorm = normEs(es), simNorm = normSim(sim);
-      const variants = espNorm.split(/[\/,]/).map(s=>s.trim()).filter(Boolean); // <- sinónimos
+      const variants = espNorm.split(/[\/,]/).map(s=>s.trim()).filter(Boolean);
       for(const v of variants){ if(!CORE_ES2SIM.has(v)) CORE_ES2SIM.set(v, sim); }
-      if(!CORE_SIM2ES.has(simNorm)) CORE_SIM2ES.set(simNorm, es.split('/')[0]); // toma la 1ra si hay "a/b"
+      if(!CORE_SIM2ES.has(simNorm)) CORE_SIM2ES.set(simNorm, es.split('/')[0]);
     }
   }
   for(const group of Object.values(DATA.phrasebook||{})){
@@ -307,7 +308,7 @@ let CORE_ES2SIM=new Map(), CORE_SIM2ES=new Map(), PH_ES2SIM=new Map(), PH_SIM2ES
   }
 })();
 
-/* ===================== MULTI-PALABRAS SIMLISH (p.ej. "su laa") ===================== */
+/* ===================== MULTI-PALABRAS SIMLISH ===================== */
 function getMultiSimKeys(){
   const keys = new Set();
   for (const entries of Object.values(DATA.vocabulario||{})){
@@ -329,7 +330,7 @@ function compressMultiSim(text){
   for (const key of keys){
     const escaped = key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
     const re = new RegExp(`\\b${escaped}\\b`, "gi");
-    out = out.replace(re, (m)=> m.replace(/\s+/g, "_")); // "su laa" -> "su_laa"
+    out = out.replace(re, (m)=> m.replace(/\s+/g, "_"));
   }
   return out;
 }
@@ -350,9 +351,8 @@ function esSynSet(esStr){
   return new Set(raw.split(/[\/,]/).map(s=>normEs(s)).filter(Boolean));
 }
 
-/* Conflictos que entienden sinónimos ("a / b"): no marcan conflicto si el ES del usuario está dentro del set de sinónimos CORE (o viceversa) */
+/* Conflictos con sinónimos */
 function scanConflicts(){
-  // Core: sim -> set de sinónimos
   const coreSyn = new Map();
   for(const entries of Object.values(DATA.vocabulario)){
     for(const [sim, es] of Object.entries(entries)){
@@ -361,23 +361,16 @@ function scanConflicts(){
       coreSyn.set(s, new Set([...(coreSyn.get(s)||[]), ...set]));
     }
   }
-  // Recolectar grupos por SIM (mezclando CORE y USER). Hacemos merge si hay intersección.
   const bySim = new Map();
-  // 1) CORE como grupo base
-  for(const [simNorm, set] of coreSyn.entries()){
-    bySim.set(simNorm, [set]);
-  }
-  // 2) USER.sim2es (sim -> string con posibles "a / b")
+  for(const [simNorm, set] of coreSyn.entries()){ bySim.set(simNorm, [set]); }
   for(const [sim, es] of Object.entries(USER.sim2es||{})){
     const kSim = normSim(sim), set = esSynSet(es);
     if(!bySim.has(kSim)) bySim.set(kSim, []);
-    // merge por intersección
     let groups = bySim.get(kSim);
     let merged = false;
     for(const g of groups){ const inter = [...set].some(x=>g.has(x)); if(inter){ for(const x of set) g.add(x); merged=true; break; } }
     if(!merged) groups.push(set);
   }
-  // 3) USER.es2sim (es -> sim)
   for(const [es, sim] of Object.entries(USER.es2sim||{})){
     const kSim = normSim(sim), set = esSynSet(es);
     if(!bySim.has(kSim)) bySim.set(kSim, []);
@@ -386,14 +379,10 @@ function scanConflicts(){
     for(const g of groups){ const inter = [...set].some(x=>g.has(x)); if(inter){ for(const x of set) g.add(x); merged=true; break; } }
     if(!merged) groups.push(set);
   }
-
-  // Un conflicto existe si para un SIM hay más de 1 grupo disjunto (sin sinónimos cruzados)
   const conflicts = [];
   for(const [sim, groups] of bySim.entries()){
     const compact = groups.filter(g=>g && g.size>0);
-    if(compact.length > 1){
-      conflicts.push({ sim, groups: compact.map(g=>Array.from(g)) });
-    }
+    if(compact.length > 1){ conflicts.push({ sim, groups: compact.map(g=>Array.from(g)) }); }
   }
   return conflicts;
 }
@@ -485,16 +474,31 @@ function translateSIM2ES(text){
 
     for(const t0 of toks){
       if(/^[.,;:!?]$/.test(t0)){ esToks.push(t0); continue; }
-      const t = expandMultiSimToken(t0);           // "su_laa" -> "su laa"
+      const t = expandMultiSimToken(t0);
       const key = normSim(t);
 
+      // 1) Diccionario directo
       let es = USER.sim2es[key] || CORE_SIM2ES.get(key);
+
+      // 2) Quitar prefijos/sufijos temporales
       if(!es){
-        // intenta sin prefijos/sufijos de tiempo ("dra-/to-", "-nu/-ru")
         const base = key.replace(/^(dra-|to-)/,"").replace(/(-nu|-ru)$/,"");
         es = USER.sim2es[base] || CORE_SIM2ES.get(base);
       }
-      if(!es){ es = t; }
+
+      // 3) Búsqueda inversa en ES→SIM (por si otro cliente solo subió es2sim)
+      if(!es){
+        for (const [esKey, simVal] of Object.entries(USER.es2sim || {})) {
+          if (normSim(simVal) === key) { es = esKey; break; }
+          // también prueba con base sin afijos
+          const simBase = normSim(simVal).replace(/^(dra-|to-)/,"").replace(/(-nu|-ru)$/,"");
+          if (simBase === key) { es = esKey; break; }
+        }
+      }
+
+      // 4) Fallback visible
+      if(!es){ es = `[?${t}]`; }
+
       esToks.push(es);
     }
 
@@ -539,11 +543,9 @@ function renderConflictsList(conflicts){
   }).join("");
   $confList.innerHTML = items;
 
-  // Bind botones
   $confList.querySelectorAll("[data-open]").forEach(b=>{
     b.addEventListener("click", ()=>{
       const sim = b.getAttribute("data-open");
-      // abrir panel, poner modo SIM, buscar ese sim
       unlockPanelIfNeeded().then(ok=>{
         if(!ok) return;
         const modeSim = document.querySelector('input[name="mode"][value="SIM"]');
@@ -582,7 +584,6 @@ function refreshMeta(){
   const confs=scanConflicts();
   if($confCount) $confCount.textContent=String(confs.length);
   if($confBadge){ $confBadge.classList.toggle("warn", confs.length>0); $confBadge.classList.toggle("ok", confs.length===0); }
-  // si está abierta la lista, re-pintar
   if($confList && $confList.style.display!=="none"){ renderConflictsList(confs); }
 
   if($strictBanner){ $strictBanner.style.display="none"; }
@@ -597,7 +598,6 @@ $copy.addEventListener("click", async ()=>{ const txt=$out.textContent.trim(); i
 catch{ const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); $copy.textContent="¡Copiado!"; } finally{ document.body.removeChild(ta); setTimeout(()=>{$copy.textContent="Copiar";},900); } } });
 $demo.addEventListener("click", ()=>{ if(CURRENT_DIR===DIR.ES2SIM){ $in.value="Ayer cociné sopa caliente, hoy la estoy sirviendo y mañana la voy a compartir."; } else { $in.value="Sul sul! Su laa! Dag dag! Da vaa."; } doTranslate(); });
 $exportBtn.addEventListener("click", ()=>{
-  // Un único respaldo con user + history
   exportBackup();
 });
 
@@ -637,7 +637,7 @@ function resultsFromQuery(q, mode){
         if(!(USER.es2sim && USER.es2sim[es])) items.push({scope:"CORE", es, sim});
       }
     }
-  }else{ // SIM mode
+  }else{
     for(const [simKey, es] of Object.entries(USER.sim2es||{})){ if(simKey.includes(q)) items.push({scope:"USER", es, sim:simKey}); }
     for(const [simKey, es] of CORE_SIM2ES.entries()){
       if(simKey.includes(q)){
@@ -661,7 +661,6 @@ function renderResults(list){
         <button class="btn sec" ${locked?'disabled':''} data-action="del">Eliminar</button>
       </div>
       <small>${isCore? 'CORE · No editable. Puedes crear una sobreescritura en Usuario si quieres cambiarlo.' : 'Usuario · Editable'}</small>`;
-    // Guardar
     div.querySelector('[data-action="save"]')?.addEventListener('click', ()=>{
       const esVal=document.getElementById(esId).value.trim(); let simVal=document.getElementById(simId).value.trim();
       if(!esVal){ alert("Falta Español."); return; } if(!simVal){ simVal=synth(esVal); }
@@ -673,7 +672,6 @@ function renderResults(list){
       HISTORY=[...HISTORY,{es:esVal,sim:simVal,t:new Date().toISOString()}].slice(-10);
       saveUser(USER); saveHistory(HISTORY); renderResults([{scope:"USER", es:esVal, sim:simVal}]); refreshMeta();
     });
-    // Eliminar
     div.querySelector('[data-action="del"]')?.addEventListener('click', ()=>{
       const esVal=document.getElementById(esId).value.trim(); const simVal=document.getElementById(simId).value.trim();
       if(!esVal || !simVal) return;
@@ -694,7 +692,7 @@ document.getElementById("btnSearch")?.addEventListener("click", ()=>{
 });
 document.getElementById("btnGen")?.addEventListener("click", ()=>{
   const es= (document.getElementById("newEs")?.value||"").trim(); if(!es){ alert("Escribe Español."); return; }
-  document.getElementById("newSim").value = ensureUniqueSim(synth(es), es); // propuesta previa
+  document.getElementById("newSim").value = ensureUniqueSim(synth(es), es);
 });
 document.getElementById("btnCreate")?.addEventListener("click", ()=>{
   const $newEs=document.getElementById("newEs"); const $newSim=document.getElementById("newSim");
@@ -717,19 +715,16 @@ document.getElementById("btnRescan")?.addEventListener("click", ()=>{
   if($confList && $confList.style.display!=="none"){ renderConflictsList(scanConflicts()); }
 });
 
-/* Resolver conflicto por “sinónimos”: une todos los ES para ese SIM en un solo set y lo guarda en USER.sim2es[sim] y USER.es2sim[es]=sim */
+/* Resolver conflicto por sinónimos */
 function resolveConflictBySynonyms(sim){
   const kSim = normSim(sim);
   const confs = scanConflicts().filter(c=>normSim(c.sim)===kSim);
   if(!confs.length){ alert("No hay conflicto para ese SIM."); return; }
   const all = new Set();
-  // Core
   const coreStr = CORE_SIM2ES.get(kSim);
   if(coreStr){ for(const x of esSynSet(coreStr)) all.add(x); }
-  // User sim2es
   const userStr = USER.sim2es[kSim];
   if(userStr){ for(const x of esSynSet(userStr)) all.add(x); }
-  // User es2sim invertido
   for(const [es, s] of Object.entries(USER.es2sim||{})){ if(normSim(s)===kSim){ all.add(normEs(es)); } }
 
   if(all.size===0){ alert("Nada que fusionar."); return; }
@@ -766,17 +761,46 @@ async function pushToHost(){
     lastPushOk=true; dirtySinceLastPush=false;
   }catch(e){ lastPushOk=false; }
   updateHostIndicators();
+  // Tras un push exitoso o fallido, intenta re-pull para normalizar cuando vuelva el host
+  pullFromHost();
 }
+
+/* ---- Normalizador bidireccional ---- */
+function rebuildBidirectional(u){
+  const es2sim = {};
+  const sim2es = {};
+  for(const [esKey, simVal] of Object.entries(u.es2sim || {})){
+    const kEs = normEs(esKey); const simStr = String(simVal||"").trim();
+    if(!kEs || !simStr) continue;
+    es2sim[kEs] = simStr;
+    const kSim = normSim(simStr);
+    sim2es[kSim] = sim2es[kSim] ? `${sim2es[kSim]} / ${esKey}` : esKey;
+  }
+  for(const [simKey, esVal] of Object.entries(u.sim2es || {})){
+    const kSim = normSim(simKey); const esStr = String(esVal||"").trim();
+    if(!kSim || !esStr) continue;
+    if(!sim2es[kSim]) sim2es[kSim] = esStr;
+    const kEs = normEs(esStr);
+    if(!es2sim[kEs]) es2sim[kEs] = simKey;
+  }
+  return { es2sim, sim2es };
+}
+
 async function pullFromHost(){
   if(pulling) return; pulling=true;
   try{
-    const r=await fetch(endpoint(),{method:"GET",mode:"cors",credentials:"omit"});
+    const r=await fetch(endpoint(),{method:"GET",mode:"cors",credentials:"omit",cache:"no-store"});
     if(!r.ok) throw new Error(r.status);
     const data=await r.json();
     if(data && data.user){
+      // Mezcla con lo local
       USER=USER||defaultUserStore();
       USER.es2sim=Object.assign({}, USER.es2sim||{}, data.user.es2sim||{});
       USER.sim2es=Object.assign({}, USER.sim2es||{}, data.user.sim2es||{});
+      // Normaliza bidireccional
+      const rebuilt = rebuildBidirectional(USER);
+      USER.es2sim = rebuilt.es2sim;
+      USER.sim2es = rebuilt.sim2es;
       saveUser(USER);
       if(Array.isArray(data.history)){ HISTORY=data.history.slice(-10); saveHistory(HISTORY); }
       lastPushOk=true; dirtySinceLastPush=false;
@@ -784,16 +808,23 @@ async function pullFromHost(){
   }catch(e){ lastPushOk=false; }
   finally{ pulling=false; updateHostIndicators(); refreshMeta(); }
 }
+
+/* Auto-pull interno periódico y por visibilidad/focus */
+function startAutoPull(){
+  clearInterval(autoPullTimer);
+  autoPullTimer = setInterval(()=>{ pullFromHost(); }, 15000); // cada 15 s
+}
 function flushViaBeacon(){ if(!dirtySinceLastPush) return;
   try{ const payload=JSON.stringify({ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY, flush:true });
     const blob=new Blob([payload],{type:"application/json"}); navigator.sendBeacon(endpoint(), blob); lastPushOk=true; dirtySinceLastPush=false;
   }catch(_){}
 }
 window.addEventListener("pagehide", flushViaBeacon);
-document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") flushViaBeacon(); });
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") flushViaBeacon(); if(document.visibilityState==="visible") pullFromHost(); });
+window.addEventListener("focus", ()=>pullFromHost());
 window.addEventListener("beforeunload", flushViaBeacon);
 
-/* ===================== EXPORT (reutilizable) ===================== */
+/* ===================== EXPORT ===================== */
 function exportBackup(filename){
   const payload = { core_version: CORE_VERSION, exported_at: new Date().toISOString(), user: USER, history: HISTORY };
   const data = JSON.stringify(payload, null, 2);
@@ -818,7 +849,6 @@ function getImpMode(){
   const r = Array.from(document.querySelectorAll('input[name="impMode"]')).find(x=>x.checked);
   return r ? r.value : "merge";
 }
-
 function readFileAsText(file){
   return new Promise((res, rej)=>{
     const fr = new FileReader();
@@ -827,9 +857,7 @@ function readFileAsText(file){
     fr.readAsText(file, "utf-8");
   });
 }
-
 function normalizeImportedJSON(raw){
-  // Acepta: respaldo exportado, {es2sim, sim2es}, o array de pares
   const notices=[];
   let user=null, history=[];
   if(raw && typeof raw==="object"){
@@ -839,7 +867,6 @@ function normalizeImportedJSON(raw){
     }else if(raw.es2sim || raw.sim2es){
       user = { es2sim: raw.es2sim||{}, sim2es: raw.sim2es||{} };
     }else if(Array.isArray(raw)){
-      // puede ser array de arrays o de objetos
       const pairs = [];
       for(const item of raw){
         if(Array.isArray(item) && item.length>=2){ pairs.push([item[0], item[1]]); }
@@ -856,7 +883,6 @@ function normalizeImportedJSON(raw){
     }
   }
   if(!user) throw new Error("Estructura no reconocida. Usa respaldo exportado, {es2sim, sim2es} o array de pares.");
-  // Normaliza: construir sim2es a partir de es2sim si falta o para completar huecos
   const es2sim = {}; const sim2es = {};
   for(const [esKey, simVal] of Object.entries(user.es2sim||{})){
     const kEs = normEs(esKey); const simStr = String(simVal||"").trim();
@@ -874,7 +900,6 @@ function normalizeImportedJSON(raw){
   }
   return { user: { es2sim, sim2es }, history, notices };
 }
-
 function summarizeImport(candidate, mode){
   const curES = USER.es2sim||{}; const curSIM = USER.sim2es||{};
   const newES = candidate.user.es2sim||{}; const newSIM = candidate.user.sim2es||{};
@@ -887,7 +912,6 @@ function summarizeImport(candidate, mode){
   }
   const totalPostES = mode==="replace" ? Object.keys(newES).length : Object.keys({...curES, ...newES}).length;
 
-  // SIM lado informativo (no bloquea)
   let addedSIM=0, updatedSIM=0, untouchedSIM=0;
   for(const [sim, es] of Object.entries(newSIM)){
     if(!(sim in curSIM)) addedSIM++;
@@ -895,7 +919,7 @@ function summarizeImport(candidate, mode){
     else untouchedSIM++;
   }
 
-  const conflicts = scanConflicts(); // actual (antes de importar)
+  const conflicts = scanConflicts();
   return {
     text: [
       `Modo: ${mode==="replace"?"Reemplazar todo":"Fusionar"}.`,
@@ -907,28 +931,24 @@ function summarizeImport(candidate, mode){
     ].filter(Boolean).join(" ")
   };
 }
-
 function applyImport(candidate, mode){
   if(mode==="replace"){
     USER = defaultUserStore();
     USER.es2sim = {...candidate.user.es2sim};
     USER.sim2es = {...candidate.user.sim2es};
-  }else{ // merge (importa y sobreescribe claves coincidentes)
-    // ES→SIM: import gana
+  }else{
     for(const [kEs, sim] of Object.entries(candidate.user.es2sim||{})){
       const prevSim = USER.es2sim[kEs];
       if(prevSim && normSim(prevSim)!==normSim(sim)){ delete USER.sim2es[normSim(prevSim)]; }
       USER.es2sim[kEs] = String(sim);
       USER.sim2es[normSim(sim)] = USER.sim2es[normSim(sim)] ? USER.sim2es[normSim(sim)] : kEs;
     }
-    // SIM→ES: añade si no existe sim aún
     for(const [kSim, es] of Object.entries(candidate.user.sim2es||{})){
       if(!USER.sim2es[kSim]) USER.sim2es[kSim] = String(es);
       const kEs = normEs(es);
       if(!USER.es2sim[kEs]) USER.es2sim[kEs] = kSim;
     }
   }
-  // History: si llegó, actualizamos las últimas 10
   if(Array.isArray(candidate.history) && candidate.history.length){
     HISTORY = candidate.history.slice(-10);
     saveHistory(HISTORY);
@@ -958,17 +978,14 @@ $impPreview?.addEventListener("click", async ()=>{
     $impInfo.textContent = `Error: ${(e&&e.message)||"JSON inválido"}.`;
   }
 });
-
 $impApply?.addEventListener("click", ()=>{
   if(!IMPORT_CANDIDATE){ alert("Primero genera la vista previa."); return; }
   const mode = getImpMode();
   if($impBackup?.checked){ exportBackup(`simlish-backup-pre-import-v${CORE_VERSION}.json`); }
   applyImport(IMPORT_CANDIDATE, mode);
-  // limpiar estados
   IMPORT_CANDIDATE = null; IMPORT_SUMMARY = null;
   $impApply.disabled = true;
   $impInfo.textContent = "Importación realizada. Diccionario actualizado y sincronizando con el host…";
-  // refrescar conflictos si el panel está desplegado
   const listVisible = document.getElementById("confList")?.style.display !== "none";
   if(listVisible){ renderConflictsList(scanConflicts()); }
 });
@@ -992,8 +1009,13 @@ function doTranslate(){
 }
 
 /* ===================== INIT ===================== */
-function init(){ setDir(DIR.ES2SIM); pullFromHost(); refreshMeta(); }
+function init(){
+  setDir(DIR.ES2SIM);
+  pullFromHost();      // primer pull
+  startAutoPull();     // auto-pull interno
+  refreshMeta();
+}
 init();
 </script>
 </body>
-</html>
+  </html>
