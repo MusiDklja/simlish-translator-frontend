@@ -2,7 +2,16 @@
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Simlish Translator · ES ⇄ SIM · Core v3.1</title>
 <meta name="description" content="Traductor bidireccional Español ⇄ Simlish con aprendizaje y sincronización estricta a backend.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self';connect-src 'self' https://simlish-translator-backend.onrender.com;img-src 'self' https: data:;script-src 'self' 'unsafe-inline';style-src 'self' 'unsafe-inline';base-uri 'self';frame-ancestors 'self'">
+<!-- CSP relajada para permitir host externo en producción (Neocities, etc.) -->
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'self';
+           connect-src 'self' https: data: blob:;
+           img-src 'self' https: data:;
+           script-src 'self' 'unsafe-inline';
+           style-src  'self' 'unsafe-inline';
+           base-uri 'self';
+           frame-ancestors 'self';
+           upgrade-insecure-requests">
 <style>
 :root{--bg:#06141a;--bg2:#071e24;--ink:#e6f7f4;--muted:#93c5c9;--line:#0f2e35;--accent:#22d3a6;--accent-strong:#10b981;--accent-warn:#eab308;--tiktok:#38bdf8}
 *{box-sizing:border-box}html,body{height:100%}
@@ -64,7 +73,7 @@ a{color:var(--tiktok);text-decoration:none;font-weight:600}a:hover{text-decorati
         <span class="chip">Aprendidos (últ. op.): <b id="stateLearnVal">0</b></span>
         <span class="chip" id="confBadge" style="cursor:pointer" title="Ver conflictos">Conflictos: <b id="confCount">0</b></span>
         <span class="chip">Lex: <b id="metaLex">-</b></span>
-        <span class="chip" id="hostChip" title="Estado de sincronización con host">Host: <b id="hostState">Listo</b></span>
+        <span class="chip" id="hostChip" title="Estado de sincronización con host">Host: <b id="hostState">—</b></span>
       </div>
       <div id="confList" class="confList" style="display:none"></div>
     </div>
@@ -129,7 +138,7 @@ a{color:var(--tiktok);text-decoration:none;font-weight:600}a:hover{text-decorati
 </main>
 
 <footer style="text-align:center;padding:16px;font-size:.85rem;color:var(--muted);border-top:1px solid var(--line);margin-top:24px">
-  <a href="https://www.tiktok.com/@musimiau?_t=ZM-8stssM0VX78&_r=1" target="_blank">@musimiau en TikTok🧡💜</a><br>
+  <a href="https://www.tiktok.com/@musimiau?_t=ZM-8stssM0VX78&_r=1" target="_blank" rel="noopener">@musimiau en TikTok🧡💜</a><br>
   ☆ Creado por <b style="color:var(--accent)">&nbsp;Musi Dklja&nbsp;</b> (28 de Agosto del 2025)
 </footer>
 
@@ -137,7 +146,15 @@ a{color:var(--tiktok);text-decoration:none;font-weight:600}a:hover{text-decorati
 /* ===================== CONFIG + HELPERS ===================== */
 const CORE_VERSION="3.1",STRICT_MODE=true,KEY_USER=`simlishLexiconUser:${CORE_VERSION}`,KEY_HISTORY=`simlishLexiconHistory:${CORE_VERSION}`,DIR={ES2SIM:"ES2SIM",SIM2ES:"SIM2ES"};let CURRENT_DIR=DIR.ES2SIM,lastLearnedCount=0;
 /* Backend forzado */
-const BACKEND_URL="https://simlish-translator-backend.onrender.com/";let pushTimer=null,pulling=false,lastPushOk=null,dirtySinceLastPush=false;
+const BACKEND_URL="https://simlish-translator-backend.onrender.com";
+let pushTimer=null,pulling=false,lastPushOk=null,dirtySinceLastPush=false;
+
+/* Señal de diagnóstico visible */
+function setHost(msg,ok){const el=document.getElementById("hostState");if(el)el.textContent=msg;document.getElementById("hostChip")?.classList?.toggle("warn",!ok);document.getElementById("hostChip")?.classList?.toggle("ok",!!ok)}
+
+/* Timeout para fetch */
+function fetchWithTimeout(resource,options={}){const{timeout=9000}=options;const controller=new AbortController();const id=setTimeout(()=>controller.abort(),timeout);return fetch(resource,{...options,signal:controller.signal,mode:"cors",credentials:"omit"}).finally(()=>clearTimeout(id))}
+
 /* Admin pass (SHA-256 hex) */
 const PASS_SHA256_HEX="7f62619786ad59b250343204be7eba3b6adf943139684e185ab7234e8dc7d774";
 async function verifyPass(pass){if(!window.crypto?.subtle)return false;const enc=new TextEncoder().encode(pass);const buf=await crypto.subtle.digest("SHA-256",enc);return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("")===PASS_SHA256_HEX;}
@@ -197,9 +214,22 @@ function translateEs2Sim(text){const tokens=tokenizeEs(text);const compressed=co
 function translateSim2Es(text){const parts=text.split(/(\s+|[.,;:!?()"'¡¿])/).filter(x=>x!==undefined&&x!=="");const out=[];for(const tk of parts){if(/\s+|[.,;:!?()"'¡¿]/.test(tk)){out.push(tk);continue}let w=normSim(tk).replace(/^(dra-|to-)/,"").replace(/(-nu|-ru)$/,"");const es=PH_SIM2ES.get(w)||USER.sim2es[w]||CORE_SIM2ES.get(w)||tk;out.push(preserveCase(tk,es))}return out.join("")}
 
 /* ===================== Host sync (estricto) ===================== */
-async function pullFromHost(){if(pulling) return;pulling=true;try{const r=await fetch(BACKEND_URL+"pull?version="+encodeURIComponent(CORE_VERSION));if(!r.ok) throw new Error("pull "+r.status);const data=await r.json();if(data?.user){USER=data.user;saveUser(USER)}if(Array.isArray(data?.history)){HISTORY=data.history.slice(-10);saveHistory(HISTORY)}document.getElementById("hostState").textContent="Sincronizado"}catch(e){document.getElementById("hostState").textContent="Offline"}finally{pulling=false}}
+async function pullFromHost(){if(pulling) return;pulling=true;try{
+  setHost("Conectando…",false);
+  const r=await fetchWithTimeout(`${BACKEND_URL}/pull?version=${encodeURIComponent(CORE_VERSION)}`,{headers:{"Accept":"application/json"}});
+  if(!r.ok) throw new Error("pull "+r.status);
+  const data=await r.json();
+  if(data?.user){USER=data.user;saveUser(USER)}
+  if(Array.isArray(data?.history)){HISTORY=data.history.slice(-10);saveHistory(HISTORY)}
+  setHost("Sincronizado",true);
+}catch(e){
+  setHost("Offline",false);
+}finally{pulling=false}}
 function schedulePushToHost(){clearTimeout(pushTimer);pushTimer=setTimeout(pushToHost,900)}
-async function pushToHost(){if(!dirtySinceLastPush)return;try{const r=await fetch(BACKEND_URL+"push",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({version:CORE_VERSION,user:USER,history:HISTORY})});lastPushOk=r.ok;dirtySinceLastPush=false;document.getElementById("hostState").textContent=r.ok?"Enviado":"Error"}catch{document.getElementById("hostState").textContent="Offline"}}
+async function pushToHost(){if(!dirtySinceLastPush)return;try{
+  const r=await fetchWithTimeout(`${BACKEND_URL}/push`,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({version:CORE_VERSION,user:USER,history:HISTORY})});
+  lastPushOk=r.ok;dirtySinceLastPush=false;setHost(r.ok?"Enviado":"Error",r.ok);
+}catch{setHost("Offline",false)}}
 
 /* ===================== UI ===================== */
 function refreshHistory(){const $h=document.getElementById("history");$h.textContent=(HISTORY&&HISTORY.length)?HISTORY.map(x=>`${x.es} ⇄ ${x.sim}`).join(" · "):"--"}
