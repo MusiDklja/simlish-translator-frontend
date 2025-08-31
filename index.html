@@ -14,10 +14,18 @@
            base-uri 'self';
            frame-ancestors 'self'">
 <style>
-  :root{ --bg:#06141a; --bg2:#071e24; --ink:#e6f7f4; --muted:#93c5c9; --line:#0f2e35; --accent:#22d3a6; --accent-strong:#10b981; --accent:#22d3a6; --accent-warn:#eab308; --tiktok:#38bdf8; }
+  :root{ --bg:#06141a; --bg2:#071e24; --ink:#e6f7f4; --muted:#93c5c9; --line:#0f2e35; --accent:#22d3a6; --accent-strong:#10b981; --accent-warn:#eab308; --tiktok:#38bdf8; }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{ margin:0; background:radial-gradient(1200px 800px at 15% -10%, #0a2b2f 0%, transparent 50%), linear-gradient(180deg,#041017,#06141a 35%, #06141a 100%); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow-x:hidden; }
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 800px at 15% -10%, #0a2b2f 0%, transparent 50%),
+      linear-gradient(180deg,#041017,#06141a 35%, #06141a 100%);
+    color:var(--ink);
+    font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;
+    overflow-x:hidden;
+  }
   header{padding:20px 24px;border-bottom:1px solid var(--line);background:#06141acc;backdrop-filter:blur(6px)}
   h1{margin:0;font-size:1.25rem;display:flex;gap:10px;align-items:center}
   .pill{display:inline-block;background:var(--accent);color:#04201a;padding:2px 10px;border-radius:999px;font-weight:800;font-size:.8rem}
@@ -29,12 +37,949 @@
   textarea,button,input,select{width:100%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#071b20;color:var(--ink)}
   textarea{min-height:170px;resize:vertical}
   .row{display:grid;gap:12px;grid-template-columns:1fr 1fr}
-  .btn{cursor:pointer;transition:filter .15s ease, transform .05s ease;background:linear-gradient(180deg,var(--accent) 0%, var(--accent-strong) 100%);color:#052018;font-weight:800;border:none}
+  .btn{
+    cursor:pointer;
+    transition:filter .15s ease, transform .05s ease;
+    background:linear-gradient(180deg,var(--accent) 0%, var(--accent-strong) 100%);
+    color:#052018;font-weight:800;border:none
+  }
   .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(1px)}
   .btn.sec{background:#071b20;border:1px solid var(--line);color:#2fe0bb;font-weight:600}
   .out{white-space:pre-wrap;min-height:170px;border-radius:12px;border:1px dashed var(--line);padding:10px;background:#06141a;word-break:break-word;overflow-wrap:anywhere}
   .muted{color:var(--muted);font-size:.92rem}
   .small{font-size:.85rem}
+  .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#071b20;padding:6px 10px;border-radius:999px}
+  .state{display:flex;gap:8px;flex-wrap:wrap}
+  .ok{color:var(--accent-strong)} .warn{color:var(--accent-warn)}
+  .dirbtn{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;width:auto;min-width:180px}
+  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#071b20;border:1px solid #2a2f40;border-bottom-width:2px;border-radius:6px;padding:1px 6px}
+  details summary{cursor:pointer}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  a{color:var(--tiktok);text-decoration:none;font-weight:600}
+  a:hover{text-decoration:underline}
+  .secret{max-width:1100px;margin:0 auto;padding:0 24px 12px}
+  .list{display:grid;gap:8px;margin-top:8px}
+  .item{display:grid;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#06181e}
+  .item .row2{display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px}
+  .item small{color:var(--muted)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chipOpt{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#071b20;padding:6px 10px;border-radius:999px}
+  .confList{margin-top:10px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#06181e}
+  .confItem{padding:8px;border:1px solid var(--line);border-radius:10px;margin-top:8px;background:#071b20}
+  .importWrap{display:grid;gap:10px;margin-top:12px}
+  .importActions{display:flex;gap:8px;flex-wrap:wrap}
+  .hint{font-size:.8rem;color:var(--muted)}
+</style>
+</head>
+<body>
+  <header>
+    <h1>Simlish Translator <span class="pill">ES ⇄ SIM · Core v3.1</span></h1>
+  </header>
+
+  <main class="wrap">
+    <section class="grid">
+      <div class="card">
+        <div class="row" style="grid-template-columns:1fr auto">
+          <label for="in" style="margin:0;align-self:center">Entrada</label>
+          <button id="toggleDir" class="btn dirbtn" title="Cambiar dirección"><span id="dirLabel">ES → SIM</span></button>
+        </div>
+        <textarea id="in" placeholder="Escribe aquí."></textarea>
+        <div class="row" style="margin-top:12px">
+          <button id="translate" class="btn">Traducir</button>
+          <button id="clear" class="btn sec" title="Borrar texto">Limpiar</button>
+        </div>
+        <p class="muted small">Aprendizaje estricto: sincroniza y guarda automáticamente en el backend oficial.</p>
+        <div class="toolbar">
+          <button id="exportBtn" class="btn sec" title="Exportar respaldo">Exportar respaldo (.json)</button>
+        </div>
+        <div id="strictBanner" class="small muted" style="display:none"></div>
+      </div>
+
+      <div class="card">
+        <label for="out">Salida</label>
+        <div id="out" class="out" aria-live="polite">--</div>
+        <div class="row" style="margin-top:12px">
+          <button id="copy" class="btn">Copiar</button>
+          <button id="demo" class="btn sec" title="Ejemplo rápido">Ejemplo</button>
+        </div>
+        <div class="state" style="margin-top:12px">
+          <span class="chip">Modo: <b>Estricto</b></span>
+          <span class="chip">Dirección: <b id="stateDirVal">ES→SIM</b></span>
+          <span class="chip">Versión base: <b>3.1</b></span>
+          <span class="chip">Aprendidos (últ. op.): <b id="stateLearnVal">0</b></span>
+          <span class="chip" id="confBadge" style="cursor:pointer" title="Ver conflictos">Conflictos: <b id="confCount">0</b></span>
+          <span class="chip">Lex: <b id="metaLex">-</b></span>
+          <span class="chip" id="hostChip" title="Estado de sincronización con host">Host: <b id="hostState">Listo</b></span>
+        </div>
+        <div id="confList" class="confList" style="display:none"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <details open>
+        <summary><strong>Historial (últimos 10 aprendidos)</strong></summary>
+        <div id="history" class="small muted" style="margin-top:8px">--</div>
+      </details>
+      <details style="margin-top:12px">
+        <summary><strong>Gramática & Vocab cargados</strong></summary>
+        <div class="small muted" id="meta"></div>
+      </details>
+      <p class="muted small" style="margin-top:10px">
+        Tiempos: prefijos <span class="kbd">dra-</span>/<span class="kbd">to-</span>, sufijos <span class="kbd">-nu</span>/<span class="kbd">-ru</span> con auxiliar <span class="kbd">shoba</span>.
+      </p>
+    </section>
+
+    <!-- ===== Panel secreto (admin) ===== -->
+    <div class="secret">
+      <div class="row" style="grid-template-columns:1fr auto">
+        <input id="secretPass" type="password" placeholder="" aria-label=""/>
+        <button id="secretUnlock" class="btn" style="width:auto">OK</button>
+      </div>
+
+      <div id="secretPanel" class="card" style="display:none;margin-top:10px">
+        <div class="chips" style="margin-bottom:8px">
+          <label class="chipOpt"><input type="radio" name="mode" value="ES" checked> ES</label>
+          <label class="chipOpt"><input type="radio" name="mode" value="SIM"> SIM</label>
+          <button id="btnRescan" class="btn sec" style="margin-left:auto;width:auto">Re-escanear conflictos</button>
+        </div>
+
+        <!-- Buscar/editar -->
+        <div class="row">
+          <input id="searchQuery" placeholder="buscar…"/>
+          <button id="btnSearch" class="btn sec">Buscar</button>
+        </div>
+        <div id="searchInfo" class="small muted" style="margin-top:6px">Edita solo pares de <b>Usuario</b>. CORE es de solo lectura.</div>
+        <div id="results" class="list"></div>
+
+        <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+
+        <!-- Crear manual -->
+        <div class="row">
+          <input id="newEs" placeholder="Español"/>
+          <input id="newSim" placeholder="(generado aquí)"/>
+        </div>
+        <div class="row" style="grid-template-columns:auto auto 1fr">
+          <button id="btnGen" class="btn sec">Generar</button>
+          <button id="btnCreate" class="btn">Guardar</button>
+          <span class="small muted"></span>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
+
+        <!-- Importar respaldo -->
+        <details open>
+          <summary><strong>Cargar respaldo (.json) -- Admin</strong></summary>
+          <div class="importWrap">
+            <div class="hint">Pega el JSON o selecciona un archivo exportado con "Exportar respaldo (.json)".</div>
+
+            <div class="row" style="grid-template-columns:1fr auto">
+              <textarea id="importJson" placeholder='Pega aquí el JSON del respaldo…'></textarea>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <input id="importFile" type="file" accept="application/json"/>
+                <button id="btnLoadFile" class="btn sec" type="button" title="Leer archivo y volcar al cuadro">Leer archivo</button>
+              </div>
+            </div>
+
+            <div class="importActions">
+              <select id="importMode" title="Modo de carga" style="max-width:220px">
+                <option value="merge">Fusionar (conservar y sumar)</option>
+                <option value="replace">Reemplazar (sobrescribe todo Usuario)</option>
+              </select>
+              <button id="btnPreviewImport" class="btn sec" type="button">Previsualizar</button>
+              <button id="btnDoImport" class="btn" type="button">Aplicar</button>
+              <span id="importInfo" class="hint"></span>
+            </div>
+          </div>
+        </details>
+
+        <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
+
+        <!-- 🔥 IMPORTANTE: La sección "Mis pares (Usuario)" fue eliminada por completo -->
+      </div>
+    </div>
+    <!-- ===== /Panel secreto ===== -->
+
+  </main>
+
+  <footer style="text-align:center;padding:16px;font-size:.85rem;color:var(--muted);border-top:1px solid var(--line);margin-top:24px">
+    <a href="https://www.tiktok.com/@musimiau?_t=ZM-8stssM0VX78&_r=1" target="_blank">@musimiau en TikTok🧡💜</a>
+    <br>
+    ☆ Creado por <b style="color:var(--accent)">&nbsp;Musi Dklja&nbsp;</b> (28 de Agosto del 2025)
+  </footer>
+
+<script>
+/* ===================== CONFIG + HELPERS ===================== */
+const CORE_VERSION = "3.1";
+const STRICT_MODE = true;
+const KEY_USER = `simlishLexiconUser:${CORE_VERSION}`;
+const KEY_HISTORY = `simlishLexiconHistory:${CORE_VERSION}`;
+const DIR = { ES2SIM:"ES2SIM", SIM2ES:"SIM2ES" };
+let CURRENT_DIR = DIR.ES2SIM;
+let lastLearnedCount = 0;
+
+/* Backend forzado */
+const BACKEND_URL = "https://simlish-translator-backend.onrender.com/";
+let pushTimer = null, pulling = false, lastPushOk = null, dirtySinceLastPush = false;
+
+/* Admin password (hash SHA-256) */
+const PASS_SHA256_HEX = "7f62619786ad59b250343204be7eba3b6adf943139684e185ab7234e8dc7d774";
+async function verifyPass(pass){
+  if(!window.crypto?.subtle) return false;
+  const enc = new TextEncoder().encode(pass);
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  const arr = Array.from(new Uint8Array(buf));
+  const hex = arr.map(b=>b.toString(16).padStart(2,"0")).join("");
+  return hex === PASS_SHA256_HEX;
+}
+
+const deacc = s => String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const normEs = s => deacc(String(s||"").toLowerCase()).trim();
+const normSim = s => String(s||"").toLowerCase().trim();
+
+function defaultUserStore(){ return { es2sim:{}, sim2es:{} }; }
+function loadUser(){ try{ return JSON.parse(localStorage.getItem(KEY_USER)||"") || defaultUserStore(); } catch{ return defaultUserStore(); } }
+function saveUser(store){ try{ localStorage.setItem(KEY_USER, JSON.stringify(store)); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
+function loadHistory(){ try{ return JSON.parse(localStorage.getItem(KEY_HISTORY)||"[]"); }catch{ return []; } }
+function saveHistory(list){ try{ localStorage.setItem(KEY_HISTORY, JSON.stringify(list.slice(-10))); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
+function canLearn(){ return true; }
+
+let USER = loadUser();
+let HISTORY = loadHistory();
+
+/* ===================== DATA (Core v3.1) ===================== */
+const DATA = {
+  "gramatica": {
+    "orden":"Sujeto – Verbo – Objeto (SVO)",
+    "adjetivo":"Después del sustantivo",
+    "posesion":"Con 'ta' → Parshu ta meeba = mi pareja",
+    "negacion":{ "nah":"no (simple)","nuvva":"nunca / negación fuerte" },
+    "plural":"Usar -s / -as / -us según sonoridad",
+    "comparativos":{ "moo":"más","minnu":"menos","firbs":"muy" },
+    "tiempos":{ "auxiliar":"shoba = estar/ser","prefijos":{"dra-":"pasado","to-":"futuro"},"sufijos":{"-nu":"presente / en acto","-ru":"aspecto en curso"} },
+    "interrogativos":{"harva":"qué/cómo (general)","kujan":"cómo (coloquial)"},
+    "conectores":{"plubbu":"y/pero","ta":"de/que/para/a","wit":"con","palu":"para","entru":"entonces","kuzra":"porque","thooba":"aunque","sooba":"así que","hovra":"sin embargo","pleebu":"si / por ejemplo"},
+    "adverbios_tiempo":{"nuvra":"ahora","yestu":"ayer","todra":"antes","tombru":"mañana","soonru":"pronto","dovra":"noche","sulah":"día"}
+  },
+  "calendario":{"dias":["Lurnas","Tarnas","Mernas","Juvnas","Virnas","Sabnas","Domnas"],"meses":["Enmar","Febmar","Tramar","Avramar","Majmar","Junmar","Julmar","Gostmar","Septmar","Oktmar","Novmar","Zimbar"]},
+  "vocabulario": {
+    "pronombres":{"meeba":"yo","teeba":"tú","heeba":"él","sheba":"ella","weeba":"nosotros","da":"el/la/los/las"},
+    "basicos":{"yibu":"sí","nah":"no","nuvva":"nunca","sul sul":"hola","su laa":"bienvenidos","dag dag":"chao","da vaa":"adiós","felnu":"perdón","firvu":"bien hecho","whazzu":"¿qué pasa?","frezzu":"felicidades","vrashoo":"ojalá","welbru":"bienvenido","oddru":"otro","gratvu":"gracias","prezooba":"bonito/hermoso","nibbu":"bebé"},
+    "lugares":{"varkun":"mercado","savrak":"escuela","tavruu":"taberna","domru":"templo","karshu":"cárcel","frambu":"granja","talvak":"taller","citra":"pueblo","shorva-midru":"plaza central"},
+    "casa":{"grivna":"pared","tavnek":"techo","grundal":"suelo","ventra":"ventana","dorvu":"puerta","skravla":"escalera","plavru":"patio","fumrak":"chimenea","slumbaa":"cama","trabka":"mesa","krinta":"silla","garvun":"armario","lumbru":"sofá","sholvik":"estante","glimra":"lámpara"},
+    "naturaleza":{"dravun":"árbol","lurvak":"bosque","rivru":"río","lagru":"lago","morvak":"mar","mornak":"montaña","vallru":"valle","plavna":"pradera","skavru":"cielo","nubba":"nube","sulvar":"sol","lunvar":"luna","strovna":"estrella","wairnu":"viento","grunva":"tierra"},
+    "clima":{"shusha":"lluvia","bravruu":"tormenta","drovak":"trueno","skrashu":"rayo/relámpago","flavru":"nieve","kravnu":"granizo","hetru":"calor","friznu":"frío","grovna":"nube oscura","prismoo":"arcoíris"},
+    "cocina":{"fooba":"comida","shubra":"ropa","lavru":"lavar","olbru":"olla","frilpa":"sartén","klivra":"cuchillo","spuvu":"cuchara","platru":"plato","glavru":"vaso","ovrak":"horno","stovru":"fuego de cocina"},
+    "verbos_cotidianos":{"brazu":"cocinar","nomma":"comer","gluppa":"beber","delvu":"servir","klasha":"cortar","mashka":"masticar","travnu":"ir/ir a","gavna":"tener","dropra":"dejar caer","workru":"trabajar","zurnu":"ganas/ángimo","showru":"aparecer/mostrar(se)"},
+    "sabores_estado":{"tastu":"sabrosa","friznu":"frío","brasha":"caliente","swibbu":"dulce","salgru":"salada","bitra":"amarga","sharvu":"picante","tartu":"ácida","fluska":"limpio"},
+    "cuerpo":{"kavra":"cabeza","manru":"mano","okru":"ojo","mokra":"boca","legra":"pierna","podru":"pie","krovna":"corazón","bonka":"hueso","skarna":"piel"},
+    "organos":{"bravna":"cerebro","stomru":"estómago","lungra":"pulmones","livru":"hígado","kidru":"riñón","krovak":"sangre","alvra":"alma","introv":"intestino","zanvak":"eterno"},
+    "sentidos":{"vooba":"ver","lurmu":"oír","snorva":"oler","gustra":"saborear","takru":"tocar","senvra":"sentir","perklu":"percibir"},
+    "emociones":{"jibnu":"feliz","mavruu":"triste","dranza":"cansado","blennu":"aburrido","franvu":"preocupado","satruu":"satisfecho","sumba":"calmado","zenvru":"celoso","pravna":"orgulloso","shombra":"avergonzado","gratru":"agradecido","truval":"confiado","timbru":"tímido"},
+    "valores":{"jusvak":"justicia","kindru":"bondad","dravru":"maldad","onrak":"honor","loybru":"lealtad","savra":"sabiduría"},
+    "relaciones":{"klavu":"amigo","onbru":"solo","neebu":"vecino","vorna":"líder","zorvik":"enemigo","stravru":"desconocido","sambru":"compañero","parshu":"pareja","lomvak":"maestro","savba":"enseñar","savnu":"aprender","savrin":"aprendiz"},
+    "animales":{"mivvu":"gato","woofum":"perro","chirva":"ave/pájaro","bluppa":"pez","tranka":"caballo","bovru":"vaca","skivvi":"ratón","vulka":"zorro","snorka":"cerdo","balmu":"oveja"},
+    "tecnologia_epico":{"netvra":"internet","stabru":"estable","zavrush":"aventuras"},
+    "narrativa_raices":{"zombru":"guiar/liderar (épico)","gravnu":"aldea/ciudad grande","flowru":"flujo espiritual/energía","shobru":"mostrar/revelar"},
+    "custom":{"plarvoh":"mañana","nurplah":"juguemos"}
+  },
+  "phrasebook":{
+    "saludos":{"Sul sul!":"¡Hola!","Su laa!":"¡Bienvenidos!","Dag dag!":"¡Chao!","Da vaa.":"Adiós."},
+    "cotidianas":{
+      "Meeba gavna ta travnu ta lavru shubra, plubbu meeba gavna nuvva zurnu.":"Tengo que ir a lavar ropa y no tengo ganas.",
+      "Meeba brazu supa brasha.":"Cocino sopa caliente.",
+      "Delvu da supa wit spuvu.":"Sirve la sopa con la cuchara.",
+      "Meeba gluppa tivra brasha.":"Bebo té caliente."
+    },
+    "vivo_humor_picante":{
+      "Chobba entru":"Chúpalo entonces","Meeba travnu dropla da shusha":"Voy a dejar caer la lluvia",
+      "Zemma fruuvy":"Semencito rico","Klavash":"Culear","Zorva":"Zorra","Plumba fruuvy":"Pene rico","Zabbo palu da vooba":"Pico pal que lee"
+    },
+    "tiernas":{"Puzzaa, meeba wrongru.":"Pucha, me equivoqué.","Aiaiyu, da hurtru brumba.":"Ayayay, qué dolor grande.","Nyeee, meeba nah sulah.":"Ñeee, no quiero.","Shishi, da funnu.":"Jijiji, qué chistoso."},
+    "tecnologia_deseo":{"Vrashoo ta netvra shoba stabru, klavrus Musisitos.":"Ojalá que el internet esté estable, queridos Musisitos."},
+    "extras_calendario":{"Nuvra shoba Lurnas.":"Hoy es lunes.","Tombru shoba Tarnas.":"Mañana será martes.","Ta Mernas weeba playru Simms.":"El miércoles jugamos Sims."},
+    "garabatos_chilenismos":{
+      "Krabbo tuvorna":"Ctm","Da dravva":"La dura","Noobru klavrak":"Cabro ql","Chuvra":"Chucha",
+      "Putra da wobru":"Puta la wea","Palu da krabba":"Pa' la cagá","Travnu wobru-shaka":"Andái puro webiando","Kon kruva":"Con cuea"
+    }
+  }
+};
+
+/* ===================== ÍNDICES CORE + PHRASEBOOK ===================== */
+let CORE_ES2SIM=new Map(), CORE_SIM2ES=new Map(), PH_ES2SIM=new Map(), PH_SIM2ES=new Map();
+(function buildCore(){
+  for(const entries of Object.values(DATA.vocabulario)){
+    for(const [sim, es] of Object.entries(entries)){
+      const espNorm = normEs(es), simNorm = normSim(sim);
+      const variants = espNorm.split(/[\/,]/).map(s=>s.trim()).filter(Boolean);
+      for(const v of variants){ if(!CORE_ES2SIM.has(v)) CORE_ES2SIM.set(v, sim); }
+      if(!CORE_SIM2ES.has(simNorm)) CORE_SIM2ES.set(simNorm, es.split('/')[0]);
+    }
+  }
+  for(const group of Object.values(DATA.phrasebook||{})){
+    for(const [sim, es] of Object.entries(group)){
+      PH_ES2SIM.set(normEs(es), sim);
+      PH_SIM2ES.set(normSim(sim), es);
+    }
+  }
+})();
+
+/* ===================== Multi-palabras SIM ===================== */
+function getMultiSimKeys(){
+  const keys = new Set();
+  for (const entries of Object.values(DATA.vocabulario||{})){
+    for (const sim of Object.keys(entries||{})){
+      if (sim.includes(" ")) keys.add(sim.toLowerCase());
+    }
+  }
+  for (const sim of Object.keys((USER&&USER.sim2es)||{})){
+    if (sim && sim.includes(" ")) keys.add(sim.toLowerCase());
+  }
+  for (const grp of Object.values(DATA.phrasebook||{})){
+    for (const sim of Object.keys(grp)){
+      if (sim.includes(" ")) keys.add(sim.toLowerCase());
+    }
+  }
+  return Array.from(keys).sort((a,b)=> b.length - a.length);
+}
+function compressMultiSim(text){
+  let out = text;
+  const keys = getMultiSimKeys();
+  for (const key of keys){
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const re = new RegExp(`\\b${escaped}\\b`, "gi");
+    out = out.replace(re, (m)=> m.replace(/\s+/g, "_"));
+  }
+  return out;
+}
+function expandMultiSimToken(token){ return token.replace(/_/g, " "); }
+
+/* ===================== Helpers ===================== */
+function currentSimOwner(sim){ const k=normSim(sim); if(USER.sim2es[k]) return {scope:"USER", es:USER.sim2es[k]}; if(CORE_SIM2ES.has(k)) return {scope:"CORE", es:CORE_SIM2ES.get(k)}; return null; }
+function preserveCase(o,r){ return /^[A-Z]/.test(o) ? r.charAt(0).toUpperCase()+r.slice(1) : r; }
+function ensureUniqueSim(sim, es){
+  let base=normSim(sim); const owner=currentSimOwner(base);
+  if(!owner || normEs(owner.es).includes(normEs(es))) return sim;
+  const suff=["ah","eh","oh","nu","ru","va","la","ra","ba"];
+  for(const s of suff){ const cand=base+s; if(!currentSimOwner(cand)) return preserveCase(sim,cand); }
+  let i=2; while(currentSimOwner(base+i)) i++; return preserveCase(sim, base+i);
+}
+function esSynSet(esStr){
+  const raw = String(esStr||"");
+  return new Set(raw.split(/[\/,]/).map(s=>normEs(s)).filter(Boolean));
+}
+
+/* ===================== Detección simlish ===================== */
+const SYLL=["su","la","noo","boo","zim","zam","sha","bah","voh","plar","gib","yib","flo","fru","doo","ka","ru","shi","ku","va","na","mo","ta","re","lo"];
+function looksSimlish(word){
+  const w = normSim(word);
+  if(!w) return false;
+  if (USER.sim2es[w] || CORE_SIM2ES.has(w)) return true;
+  if (/^[a-z_]+$/.test(w)===false) return false;
+  if (w.length<=2) return false;
+  const syllHits = SYLL.reduce((n,syl)=> n + (w.includes(syl)?1:0), 0);
+  if (/^(dra-|to-)/.test(w) || /(-nu|-ru)$/.test(w)) return true;
+  return syllHits >= 2;
+}
+
+/* Conflictos */
+function scanConflicts(){
+  const coreSyn = new Map();
+  for(const entries of Object.values(DATA.vocabulario)){
+    for(const [sim, es] of Object.entries(entries)){
+      const s = normSim(sim);
+      const set = esSynSet(es);
+      coreSyn.set(s, new Set([...(coreSyn.get(s)||[]), ...set]));
+    }
+  }
+  const bySim = new Map();
+  for(const [simNorm, set] of coreSyn.entries()){ bySim.set(simNorm, [set]); }
+  for(const [sim, es] of Object.entries(USER.sim2es||{})){
+    const kSim = normSim(sim), set = esSynSet(es);
+    if(!bySim.has(kSim)) bySim.set(kSim, []);
+    let groups = bySim.get(kSim), merged=false;
+    for(const g of groups){ const inter=[...set].some(x=>g.has(x)); if(inter){ for(const x of set) g.add(x); merged=true; break; } }
+    if(!merged) groups.push(set);
+  }
+  for(const [es, sim] of Object.entries(USER.es2sim||{})){
+    const kSim = normSim(sim), set = esSynSet(es);
+    if(!bySim.has(kSim)) bySim.set(kSim, []);
+    let groups = bySim.get(kSim), merged=false;
+    for(const g of groups){ const inter=[...set].some(x=>g.has(x)); if(inter){ for(const x of set) g.add(x); merged=true; break; } }
+    if(!merged) groups.push(set);
+  }
+  const conflicts = [];
+  for(const [sim, groups] of bySim.entries()){
+    const compact = groups.filter(g=>g && g.size>0);
+    if(compact.length > 1){ conflicts.push({ sim, groups: compact.map(g=>Array.from(g)) }); }
+  }
+  return conflicts;
+}
+function resolveConflictBySynonyms(simKey){
+  const sim = normSim(simKey);
+  const confs = scanConflicts().find(c => normSim(c.sim) === sim);
+  if(!confs){ alert("No hay conflicto detectable para "+simKey); return; }
+  const unionEs = Array.from(new Set(confs.groups.flat())).sort();
+  const esJoined = unionEs.join(" / ");
+  USER.sim2es[sim] = esJoined;
+  for(const es of unionEs){
+    const kEs = normEs(es);
+    const prevSim = USER.es2sim[kEs];
+    if(prevSim && normSim(prevSim)!==sim){ delete USER.sim2es[normSim(prevSim)]; }
+    USER.es2sim[kEs] = sim;
+  }
+  saveUser(USER); refreshMeta();
+  alert("Conflicto resuelto. SIM: "+simKey+" ⇄ ES: "+esJoined);
+}
+
+/* ===================== Tiempos + Aprendizaje ===================== */
+function xorshift32(seed){ let x=seed|0; return ()=> (x^=x<<13,x^=x>>>17,x^=x<<5,(x>>>0)/4294967296); }
+function hashStr(s){ let h=2166136261>>>0; for(const c of s) h=Math.imul(h ^ c.charCodeAt(0),16777619); return h>>>0; }
+function synth(word){
+  const w=normEs(word).replace(/[^a-z0-9\s]/g,""); if(!w) return word;
+  const rnd=xorshift32(hashStr(w));
+  let n=Math.max(2,Math.min(4,Math.ceil(w.length/4)));
+  let out=[]; for(let i=0;i<n;i++) out.push(SYLL[Math.floor(rnd()*SYLL.length)]);
+  let res=out.join("");
+  if(/r$/.test(w)) res+="ru";
+  if(/n$/.test(w)) res+="nu";
+  return ensureUniqueSim(res, word);
+}
+function learnPairs(pairs){
+  let learned=0, stamped=[];
+  for (const [esRaw, simRaw] of pairs){
+    const es=String(esRaw||"").trim();
+    const sim1=String(simRaw||"").trim();
+    if(!es) continue;
+    const sim=ensureUniqueSim(sim1 || synth(es), es);
+    const kEs=normEs(es), kSim=normSim(sim);
+    if(!kSim) continue;
+
+    const prevSim=USER.es2sim[kEs]; if(prevSim && normSim(prevSim)!==kSim){ delete USER.sim2es[normSim(prevSim)]; }
+    const prevEs=USER.sim2es[kSim]; if(prevEs && normEs(prevEs)!==kEs){ delete USER.es2sim[normEs(prevEs)]; }
+
+    if(!USER.es2sim[kEs]){ USER.es2sim[kEs]=sim; learned++; }
+    if(!USER.sim2es[kSim]){ USER.sim2es[kSim]=es; }
+    stamped.push({es, sim, t:new Date().toISOString()});
+  }
+  if(stamped.length){ HISTORY=[...HISTORY, ...stamped].slice(-10); saveHistory(HISTORY); }
+  if(learned>0) saveUser(USER);
+  return learned;
+}
+
+/* ===================== Traducción ===================== */
+const adv = DATA.gramatica.adverbios_tiempo || {};
+const PAST_LEX=new RegExp("\\b("+["ayer","antes","ya",adv.yestu,"anoche"].filter(Boolean).join("|")+")\\b","i");
+const FUT_LEX=new RegExp("\\b("+["mañana","manana","luego","después","despues","pronto",adv.tombru,"pasado mañana"].filter(Boolean).join("|")+")\\b","i");
+const PRES_LEX=new RegExp("\\b("+["hoy","ahora","enseguida",adv.nuvra].filter(Boolean).join("|")+")\\b","i");
+const RE={
+  ira:/\b(voy|vas|va|vamos|van)\s+a\s+[a-záéíóúñü]+(ar|er|ir)\b/i,
+  fut:/\b[a-záéíóúñü]+(ré|rás|rá|remos|rán)\b/i,
+  pret:/\b[a-záéíóúñü]+(é|aste|ó|amos|aron|í|iste|ió|imos|ieron)\b/i,
+  imp:/\b[a-záéíóúñü]+(aba|abas|ábamos|aban|ía|ías|íamos|ían)\b/i,
+  pastIrreg:/\b(fui|fue|fuiste|fuimos|fueron|estuve|estuviste|estuvo|estuvieron|era|eras|éramos|eran|estaba|estabas|estábamos|estaban)\b/i,
+  prog:/\b(estoy|estas|está|estamos|están|estás)\s+[a-záéíóúñü]+(ando|iendo|yendo)\b/i
+};
+const TENSE={ PAST:"past", PRESENT:"present", FUTURE:"future", PROG:"progressive" };
+function detectTense(es){
+  if(RE.prog.test(es))return TENSE.PROG;
+  if(FUT_LEX.test(es)||RE.ira.test(es)||RE.fut.test(es))return TENSE.FUTURE;
+  if(PAST_LEX.test(es)||RE.pret.test(es)||RE.imp.test(es)||RE.pastIrreg.test(es))return TENSE.PAST;
+  if(PRES_LEX.test(es))return TENSE.PRESENT;
+  return TENSE.PRESENT;
+}
+function tokensOf(text){ return text.match(/[\wáéíóúñü_]+|[.,;:!?]/gi) || [text]; }
+
+/* ES → SIM (anti-contaminación) */
+function translateES2SIM(text){
+  const sentences=text.match(/[^.!?]+[.!?]?/g) || [text]; let newPairs=[];
+  const out=sentences.map(raw=>{
+    const s=raw.trim(); if(!s) return "";
+    const pb = PH_ES2SIM.get(normEs(s.replace(/[.!?]$/,""))); if(pb) return pb;
+
+    const hasNever=/\bnunca\b/i.test(s), hasNo=/\bno\b/i.test(s); const NEG=hasNever?"nuvva":(hasNo?"nah":"");
+    const tense=detectTense(s); const toks=tokensOf(s); const simToks=[]; let injected=false;
+
+    for(const t of toks){
+      if(/^[.,;:!?]$/.test(t)){ simToks.push(t); continue; }
+      const keyEs=normEs(t);
+
+      if (looksSimlish(t)) { simToks.push(t); continue; }
+
+      let sim = USER.es2sim[keyEs] || CORE_ES2SIM.get(keyEs);
+      if(!sim){ sim=synth(t); newPairs.push([keyEs, sim]); } else { sim=ensureUniqueSim(sim, t); }
+
+      const isVerb=["brazu","nomma","gluppa","delvu","klasha","mashka","travnu","gavna","dropra","workru","zurnu","showru"].includes(normSim(sim));
+      if(!injected && isVerb){
+        let pref="", suf="", aux="shoba";
+        if(tense===TENSE.PAST) pref="dra-";
+        else if(tense===TENSE.FUTURE) pref="to-";
+        else if(tense===TENSE.PRESENT) suf="-nu";
+        else if(tense===TENSE.PROG) suf="-ru";
+        let phrase=`${aux} ${pref}${sim}${suf}`; if(NEG) phrase=`${NEG} ${phrase}`;
+        simToks.push(phrase); injected=true;
+      }else{
+        if(/^no$|^nunca$/i.test(t)) continue;
+        simToks.push(sim);
+      }
+    }
+    let outS=simToks.join(" ").replace(/\s+([.,;:!?])/g,"$1").replace(/\s+/g," ").trim();
+    if(outS) outS=outS.charAt(0).toUpperCase()+outS.slice(1); return outS;
+  }).join(" ");
+  const learnedFromGen=learnPairs(newPairs);
+  return { text: out, learnedFromGen };
+}
+
+/* SIM → ES */
+function translateSIM2ES(text){
+  const sentences = text.match(/[^.!?]+[.!?]?/g) || [text];
+  const out = sentences.map(raw=>{
+    const s = raw.trim(); if(!s) return "";
+    const pb = PH_SIM2ES.get(normSim(s.replace(/[.!?]$/,""))); if(pb) return pb;
+
+    const pre = compressMultiSim(s);
+    const toks = tokensOf(pre);
+    const esToks = [];
+
+    for(const t0 of toks){
+      if(/^[.,;:!?]$/.test(t0)){ esToks.push(t0); continue; }
+      const t = expandMultiSimToken(t0);
+      const key = normSim(t);
+
+      let es = USER.sim2es[key] || CORE_SIM2ES.get(key);
+      if(!es){
+        const base = key.replace(/^(dra-|to-)/,"").replace(/(-nu|-ru)$/,"");
+        es = USER.sim2es[base] || CORE_SIM2ES.get(base);
+      }
+      if(!es){ es = t; }
+      esToks.push(es);
+    }
+
+    let outS = esToks.join(" ").replace(/\s+([.,;:!?])/g,"$1").replace(/\s+/g," ").trim();
+    if(outS) outS = outS.charAt(0).toUpperCase() + outS.slice(1);
+    return outS;
+  }).join(" ");
+  return { text: out };
+}
+
+/* ===================== UI refs ===================== */
+const $in=document.getElementById("in"), $out=document.getElementById("out");
+const $btn=document.getElementById("translate"), $clear=document.getElementById("clear");
+const $copy=document.getElementById("copy"), $demo=document.getElementById("demo");
+const $toggleDir=document.getElementById("toggleDir"), $dirLabel=document.getElementById("dirLabel");
+const $stateDirVal=document.getElementById("stateDirVal"), $stateLearnVal=document.getElementById("stateLearnVal");
+const $meta=document.getElementById("meta"), $metaLex=document.getElementById("metaLex");
+const $exportBtn=document.getElementById("exportBtn"), $history=document.getElementById("history");
+const $confBadge=document.getElementById("confBadge"), $confCount=document.getElementById("confCount");
+const $hostChip=document.getElementById("hostChip"), $hostState=document.getElementById("hostState");
+const $strictBanner=document.getElementById("strictBanner");
+const $confList=document.getElementById("confList");
+
+function setDir(d){
+  CURRENT_DIR=d;
+  const lbl=d===DIR.ES2SIM?"ES → SIM":"SIM → ES";
+  $dirLabel.textContent=lbl;
+  if($stateDirVal) $stateDirVal.textContent=lbl.replace(" ","");
+}
+$toggleDir.addEventListener("click", ()=> setDir(CURRENT_DIR===DIR.ES2SIM?DIR.SIM2ES:DIR.ES2SIM));
+
+function renderConflictsList(conflicts){
+  if(!$confList) return;
+  if(!conflicts.length){ $confList.innerHTML = '<div class="small muted">Sin conflictos.</div>'; return; }
+  const items = conflicts.map(c=>{
+    const groupsHtml = c.groups.map((g,i)=>`<div><small>Grupo ${i+1} (ES): </small>${g.map(s=>`<span class="kbd">${s}</span>`).join(" ")}</div>`).join("");
+    return `<div class="confItem">
+      <div><b>SIM:</b> <span class="kbd">${c.sim}</span></div>
+      ${groupsHtml}
+      <div class="row" style="grid-template-columns:auto auto 1fr;margin-top:8px">
+        <button class="btn sec" data-open="${c.sim}">Abrir en editor</button>
+        <button class="btn" data-merge="${c.sim}">Resolver como sinónimo</button>
+        <span></span>
+      </div>
+    </div>`;
+  }).join("");
+  $confList.innerHTML = items;
+
+  $confList.querySelectorAll("[data-open]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const sim = b.getAttribute("data-open");
+      unlockPanelIfNeeded().then(ok=>{
+        if(!ok) return;
+        const modeSim = document.querySelector('input[name="mode"][value="SIM"]');
+        if(modeSim) modeSim.checked=true;
+        document.getElementById("searchQuery").value = sim;
+        document.getElementById("btnSearch").click();
+        window.scrollTo({top:document.getElementById("secretPanel").getBoundingClientRect().top + window.scrollY - 40, behavior:"smooth"});
+      });
+    });
+  });
+  $confList.querySelectorAll("[data-merge]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const sim = b.getAttribute("data-merge");
+      resolveConflictBySynonyms(sim);
+    });
+  });
+}
+
+function refreshMeta(){
+  const cats=Object.keys(DATA.vocabulario||{}); let totalCore=0; for(const c of cats) totalCore+=Object.keys(DATA.vocabulario[c]).length;
+  const phCount = Object.values(DATA.phrasebook||{}).reduce((a,g)=>a+Object.keys(g).length,0);
+  const userES=Object.keys(USER.es2sim||{}).length, userSIM=Object.keys(USER.sim2es||{}).length;
+  if($meta)    $meta.textContent    = `Categorías: ${cats.length} · Entradas base: ${totalCore} · Phrasebook: ${phCount} · Usuario: ${userES}/${userSIM} (ES/SIM).`;
+  if($metaLex) $metaLex.textContent = `${totalCore} + ${userES}↑`;
+  if($stateLearnVal) $stateLearnVal.textContent = String(lastLearnedCount||0);
+  if($history){
+    const hist = (Array.isArray(HISTORY)?HISTORY:[]).slice(-10);
+    if(!hist.length){ $history.textContent = "--"; }
+    else{
+      $history.innerHTML = hist.map(h => `• <b>${h.es}</b> ↔ <i>${h.sim}</i> <span class="muted">(${new Date(h.t||Date.now()).toLocaleString()})</span>`).join("<br>");
+    }
+  }
+  const confs=scanConflicts();
+  if($confCount) $confCount.textContent=String(confs.length);
+  if($confBadge){ $confBadge.classList.toggle("warn", confs.length>0); $confBadge.classList.toggle("ok", confs.length===0); }
+  if($confList && $confList.style.display!=="none"){ renderConflictsList(confs); }
+  if($strictBanner){ $strictBanner.style.display="none"; }
+  updateHostIndicators();
+}
+
+/* ===================== Botones básicos ===================== */
+document.getElementById("translate").addEventListener("click", doTranslate);
+document.getElementById("clear").addEventListener("click", ()=>{ $in.value=""; $out.textContent="--"; lastLearnedCount=0; refreshMeta(); });
+document.getElementById("copy").addEventListener("click", async ()=>{
+  const txt=$out.textContent.trim(); if(!txt||txt==="--"){ alert("No hay texto para copiar."); return; }
+  try{
+    await navigator.clipboard.writeText(txt);
+    document.getElementById("copy").textContent="¡Copiado!";
+    setTimeout(()=>{document.getElementById("copy").textContent="Copiar";},900);
+  }catch{
+    const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); document.getElementById("copy").textContent="¡Copiado!"; }
+    finally{
+      document.body.removeChild(ta);
+      setTimeout(()=>{document.getElementById("copy").textContent="Copiar";},900);
+    }
+  }
+});
+document.getElementById("demo").addEventListener("click", ()=>{
+  if(CURRENT_DIR===DIR.ES2SIM){ $in.value="Ayer cociné sopa caliente, hoy la estoy sirviendo y mañana la voy a compartir."; }
+  else { $in.value="Sul sul! Su laa! Dag dag! Da vaa."; }
+  doTranslate();
+});
+document.getElementById("exportBtn").addEventListener("click", ()=>{
+  const payload = { core_version: CORE_VERSION, exported_at: new Date().toISOString(), user: USER, history: HISTORY };
+  const data = JSON.stringify(payload, null, 2);
+  const blob=new Blob([data], {type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`simlish-backup-v${CORE_VERSION}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+});
+
+/* ===================== Secret unlock ===================== */
+async function unlockPanelIfNeeded(){
+  const panel=document.getElementById("secretPanel");
+  if(panel && panel.style.display!=="none") return true;
+  const fld = document.getElementById("secretPass");
+  const pass = (fld?.value||"").trim();
+  if(!pass){ alert("Ingresa la contraseña para administrar."); return false; }
+  const ok = await verifyPass(pass);
+  if(!ok){ alert("Contraseña incorrecta."); return false; }
+  if(panel){
+    panel.style.display="block";
+    refreshMeta();
+    initImportRefs();
+  }
+  if(fld) fld.value="";
+  return true;
+}
+document.getElementById("secretUnlock")?.addEventListener("click", async ()=>{ await unlockPanelIfNeeded(); });
+
+/* ===================== Editor búsqueda/edición ===================== */
+function resultsFromQuery(q, mode){
+  q=(q||"").trim().toLowerCase(); const items=[]; if(!q) return items;
+  if(mode==="ES"){
+    for(const [es,sim] of Object.entries(USER.es2sim||{})){ if(es.includes(q)) items.push({scope:"USER", es, sim}); }
+    for(const [key, sim] of CORE_ES2SIM.entries()){
+      if(key.includes(q)){
+        const es=key;
+        if(!(USER.es2sim && USER.es2sim[es])) items.push({scope:"CORE", es, sim});
+      }
+    }
+  }else{
+    for(const [simKey, es] of Object.entries(USER.sim2es||{})){ if(simKey.includes(q)) items.push({scope:"USER", es, sim:simKey}); }
+    for(const [simKey, es] of CORE_SIM2ES.entries()){
+      if(simKey.includes(q)){
+        if(!(USER.sim2es && USER.sim2es[simKey])) items.push({scope:"CORE", es, sim:simKey});
+      }
+    }
+  }
+  return items.slice(0,100);
+}
+function renderResults(list){
+  const $results=document.getElementById("results"); if(!$results) return; $results.innerHTML="";
+  if(!list||!list.length){ $results.innerHTML=`<div class="small muted">Sin resultados.</div>`; return; }
+  for(const item of list){
+    const div=document.createElement("div"); div.className="item";
+    const isCore=item.scope==="CORE"; const locked=isCore ? true : false;
+    const esId="es_"+Math.random().toString(36).slice(2), simId="sim_"+Math.random().toString(36).slice(2);
+    div.innerHTML=`<div class="row2">
+        <input id="${esId}" value="${item.es}" ${isCore?'disabled':''} title="${isCore?'CORE (solo lectura)':'Español'}"/>
+        <input id="${simId}" value="${item.sim}" ${locked?'disabled':''} title="${locked?'Bloqueado':'Simlish'}"/>
+        <button class="btn" ${locked?'disabled':''} data-action="save">Guardar</button>
+        <button class="btn sec" ${locked?'disabled':''} data-action="del">Eliminar</button>
+      </div>
+      <small>${isCore? 'CORE · No editable. Puedes crear una sobreescritura en Usuario si quieres cambiarlo.' : 'Usuario · Editable'}</small>`;
+    div.querySelector('[data-action="save"]')?.addEventListener('click', ()=>{
+      const esVal=document.getElementById(esId).value.trim(); let simVal=document.getElementById(simId).value.trim();
+      if(!esVal){ alert("Falta Español."); return; } if(!simVal){ simVal=synth(esVal); }
+      simVal=ensureUniqueSim(simVal, esVal);
+      const kEs=normEs(esVal), kSim=normSim(simVal);
+      const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==simVal){ delete USER.sim2es[normSim(prevSim)]; }
+      const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==esVal){ delete USER.es2sim[normEs(prevEs)]; }
+      USER.es2sim[kEs]=simVal; USER.sim2es[kSim]=esVal;
+      HISTORY=[...HISTORY,{es:esVal,sim:simVal,t:new Date().toISOString()}].slice(-10);
+      saveUser(USER); saveHistory(HISTORY); renderResults([{scope:"USER", es:esVal, sim:simVal}]); refreshMeta();
+    });
+    div.querySelector('[data-action="del"]')?.addEventListener('click', ()=>{
+      const esVal=document.getElementById(esId).value.trim(); const simVal=document.getElementById(simId).value.trim();
+      if(!esVal || !simVal) return;
+      if(!confirm(`¿Eliminar el par:\nES: "${esVal}"\nSIM: "${simVal}"?`)) return;
+      const kEs=normEs(esVal), kSim=normSim(simVal);
+      if(USER.es2sim[kEs]) delete USER.es2sim[kEs];
+      if(USER.sim2es[kSim] && normEs(USER.sim2es[kSim])===kEs) delete USER.sim2es[kSim];
+      saveUser(USER); refreshMeta();
+      div.remove();
+    });
+    $results.appendChild(div);
+  }
+}
+document.getElementById("btnSearch")?.addEventListener("click", ()=>{
+  const q=(document.getElementById("searchQuery")?.value)||"";
+  const mode=Array.from(document.querySelectorAll('input[name="mode"]')||[]).find(r=>r.checked)?.value || "ES";
+  renderResults(resultsFromQuery(q, mode));
+});
+document.getElementById("btnGen")?.addEventListener("click", ()=>{
+  const es= (document.getElementById("newEs")?.value||"").trim(); if(!es){ alert("Escribe Español."); return; }
+  document.getElementById("newSim").value = ensureUniqueSim(synth(es), es);
+});
+document.getElementById("btnCreate")?.addEventListener("click", ()=>{
+  const $newEs=document.getElementById("newEs"); const $newSim=document.getElementById("newSim");
+  if(!$newEs||!$newSim){ return; }
+  const es=($newEs.value||"").trim(); let sim=($newSim.value||"").trim();
+  if(!es){ alert("Debes escribir la palabra en Español."); return; }
+  if(!sim){ sim=ensureUniqueSim(synth(es), es); }
+  const kEs=normEs(es), kSim=normSim(sim);
+  const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==sim){ delete USER.sim2es[normSim(prevSim)]; }
+  const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==es){ delete USER.es2sim[normEs(prevEs)]; }
+  USER.es2sim[kEs]=sim; USER.sim2es[kSim]=es;
+  HISTORY=[...HISTORY,{es,sim,t:new Date().toISOString()}].slice(-10);
+  saveUser(USER); saveHistory(HISTORY);
+  $newEs.value=""; $newSim.value="";
+  renderResults([{scope:"USER", es, sim}]); refreshMeta();
+});
+document.getElementById("btnRescan")?.addEventListener("click", ()=>{
+  refreshMeta();
+  if($confList && $confList.style.display!=="none"){ renderConflictsList(scanConflicts()); }
+});
+
+/* ===================== Sync ===================== */
+function updateHostIndicators(){
+  const setTag = (tag, ok) => {
+    $hostState.textContent = tag;
+    document.getElementById("hostChip").classList.toggle("ok", ok===true);
+    document.getElementById("hostChip").classList.toggle("warn", ok===false);
+  };
+  fetch(BACKEND_URL, { method:"GET", mode:"cors", cache:"no-store" })
+    .then(r => r.ok ? r.json().then(()=>setTag("OK",true)) : setTag("Sin respuesta",false))
+    .catch(()=> setTag("Sin respuesta",false));
+}
+function endpoint(){ return BACKEND_URL; }
+function schedulePushToHost(){ clearTimeout(pushTimer); pushTimer=setTimeout(pushToHost, 600); }
+async function pushToHost(){
+  try{
+    const payload={ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY };
+    const r=await fetch(endpoint(),{ method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload), mode:"cors", credentials:"omit" });
+    if(!r.ok) throw new Error(r.status);
+    lastPushOk=true; dirtySinceLastPush=false;
+  }catch(e){ lastPushOk=false; }
+  updateHostIndicators();
+}
+async function pullFromHost(){
+  if(pulling) return; pulling=true;
+  try{
+    const r=await fetch(endpoint(),{method:"GET",mode:"cors",credentials:"omit"});
+    if(!r.ok) throw new Error(r.status);
+    const data=await r.json();
+    if(data && data.user){
+      USER=USER||defaultUserStore();
+      USER.es2sim=Object.assign({}, USER.es2sim||{}, data.user.es2sim||{});
+      USER.sim2es=Object.assign({}, USER.sim2es||{}, data.user.sim2es||{});
+      saveUser(USER);
+      if(Array.isArray(data.history)){ HISTORY=data.history.slice(-10); saveHistory(HISTORY); }
+      lastPushOk=true; dirtySinceLastPush=false;
+    }
+  }catch(e){ lastPushOk=false; }
+  finally{ pulling=false; updateHostIndicators(); refreshMeta(); }
+}
+function flushViaBeacon(){ if(!dirtySinceLastPush) return;
+  try{
+    const payload=JSON.stringify({ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY, flush:true });
+    const blob=new Blob([payload],{type:"application/json"});
+    navigator.sendBeacon(endpoint(), blob);
+    lastPushOk=true; dirtySinceLastPush=false;
+  }catch(_){}
+}
+window.addEventListener("pagehide", flushViaBeacon);
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") flushViaBeacon(); });
+window.addEventListener("beforeunload", flushViaBeacon);
+
+/* ===================== Import ===================== */
+let $importJson, $importFile, $btnLoadFile, $btnPreviewImport, $btnDoImport, $importMode, $importInfo;
+function initImportRefs(){
+  $importJson = document.getElementById("importJson");
+  $importFile = document.getElementById("importFile");
+  $btnLoadFile = document.getElementById("btnLoadFile");
+  $btnPreviewImport = document.getElementById("btnPreviewImport");
+  $btnDoImport = document.getElementById("btnDoImport");
+  $importMode = document.getElementById("importMode");
+  $importInfo = document.getElementById("importInfo");
+  if(!$btnLoadFile || $btnLoadFile._bound){ } else {
+    $btnLoadFile._bound = true;
+    $btnLoadFile.addEventListener("click", readSelectedFileIntoTextarea);
+  }
+  if($importFile && !$importFile._boundChange){
+    $importFile._boundChange = true;
+    $importFile.addEventListener("change", readSelectedFileIntoTextarea);
+  }
+  $btnPreviewImport?.addEventListener("click", ()=>{
+    try{
+      const parsed = normalizeBackupJSON($importJson.value);
+      const stats = computeBackupStats(parsed);
+      $importInfo.textContent = `Detectado: ES→SIM: ${stats.es2sim} · SIM→ES: ${stats.sim2es} · Historial: ${stats.history}`;
+    }catch(e){
+      $importInfo.textContent = `Error: ${e.message}`;
+    }
+  });
+  $btnDoImport?.addEventListener("click", ()=>{
+    try{
+      const parsed = normalizeBackupJSON($importJson.value);
+      const mode = ($importMode?.value)||"merge";
+      if(mode === "replace"){
+        if(!confirm("Vas a REEMPLAZAR completamente el diccionario de Usuario por el respaldo. ¿Continuar?")) return;
+      }
+      const stats = applyBackup(parsed, mode);
+      $importInfo.textContent = `Aplicado (${mode}). ES→SIM: +${stats.appliedEs2Sim} · SIM→ES: +${stats.appliedSim2Es} · Historial: ${stats.historyApplied}`;
+      if($importFile) $importFile.value="";
+      refreshMeta();
+      alert("Respaldo aplicado correctamente.");
+    }catch(e){
+      alert("No se aplicó el respaldo: " + e.message);
+    }
+  });
+
+  async function readSelectedFileIntoTextarea(){
+    if(!$importFile?.files?.length){ alert("Selecciona un archivo .json primero."); return; }
+    const file = $importFile.files[0];
+    try{
+      const text = await file.text();
+      $importJson.value = text;
+      $importInfo.textContent = "Archivo leído. Previsualiza o aplica cuando quieras.";
+    }catch{
+      $importInfo.textContent = "No se pudo leer el archivo.";
+    }
+  }
+}
+function normalizeBackupJSON(text){
+  if(!text || !text.trim()) throw new Error("JSON vacío.");
+  let obj;
+  try{ obj = JSON.parse(text); }catch{ throw new Error("JSON inválido."); }
+  let userLike = null, historyLike = [];
+  if(obj && obj.user && (obj.user.es2sim || obj.user.sim2es)){
+    userLike = obj.user;
+    if(Array.isArray(obj.history)) historyLike = obj.history.slice(-10);
+  }else if(obj && (obj.es2sim || obj.sim2es)){
+    userLike = { es2sim: obj.es2sim||{}, sim2es: obj.sim2es||{} };
+    if(Array.isArray(obj.history)) historyLike = obj.history.slice(-10);
+  }else{
+    throw new Error("Formato no reconocido. Se esperaba {user:{es2sim,sim2es}} o {es2sim,sim2es}.");
+  }
+  userLike.es2sim = userLike.es2sim || {};
+  userLike.sim2es = userLike.sim2es || {};
+  if(typeof userLike.es2sim !== "object" || typeof userLike.sim2es !== "object"){
+    throw new Error("Estructura de diccionario inválida.");
+  }
+  return { user: userLike, history: historyLike };
+}
+function computeBackupStats(parsed){
+  const es2sim = Object.keys(parsed.user.es2sim||{}).length;
+  const sim2es = Object.keys(parsed.user.sim2es||{}).length;
+  const hist = Array.isArray(parsed.history)? parsed.history.length : 0;
+  return { es2sim, sim2es, history: hist };
+}
+function applyBackup(parsed, mode){
+  const srcES2SIM = parsed.user.es2sim||{};
+  const srcSIM2ES = parsed.user.sim2es||{};
+  const srcHIST   = Array.isArray(parsed.history)? parsed.history.slice(-10) : [];
+  let appliedEs2Sim=0, appliedSim2Es=0, historyApplied=0;
+  if(mode === "replace"){ USER = { es2sim:{}, sim2es:{} }; }
+  for(const [es, sim] of Object.entries(srcES2SIM)){
+    const kEs=normEs(es); let simVal=String(sim||"").trim();
+    if(!kEs || !simVal) continue;
+    simVal = ensureUniqueSim(simVal, es);
+    const kSim = normSim(simVal);
+    const prevSim = USER.es2sim[kEs];
+    if(prevSim && normSim(prevSim)!==kSim){ delete USER.sim2es[normSim(prevSim)]; }
+    const prevEs = USER.sim2es[kSim];
+    if(prevEs && normEs(prevEs)!==kEs){ delete USER.es2sim[normEs(prevEs)]; }
+    if(USER.es2sim[kEs]!==simVal){ appliedEs2Sim++; }
+    USER.es2sim[kEs]=simVal;
+    USER.sim2es[kSim]=es;
+  }
+  for(const [sim, es] of Object.entries(srcSIM2ES)){
+    const kSim=normSim(sim); const esVal=String(es||"").trim();
+    if(!kSim || !esVal) continue;
+    const kEs=normEs(esVal);
+    const prevSim = USER.es2sim[kEs];
+    if(prevSim && normSim(prevSim)!==kSim){ delete USER.sim2es[normSim(prevSim)]; }
+    const prevEs = USER.sim2es[kSim];
+    if(prevEs && normEs(prevEs)!==kEs){ delete USER.es2sim[normEs(prevEs)]; }
+    if(USER.sim2es[kSim]!==esVal){ appliedSim2Es++; }
+    USER.sim2es[kSim]=esVal;
+    USER.es2sim[kEs]=sim;
+  }
+  if(srcHIST.length){
+    HISTORY = srcHIST.slice(-10);
+    historyApplied = HISTORY.length;
+  }
+  saveUser(USER);
+  saveHistory(HISTORY);
+  return { appliedEs2Sim, appliedSim2Es, historyApplied };
+}
+
+/* ===================== Traducción handler ===================== */
+function doTranslate(){
+  const val=$in.value.trim();
+  if(!val){ $out.textContent="--"; lastLearnedCount=0; refreshMeta(); return; }
+  if(CURRENT_DIR===DIR.ES2SIM){
+    const {text, learnedFromGen}=translateES2SIM(val);
+    $out.textContent=text||"--";
+    lastLearnedCount=learnedFromGen||0;
+  }else{
+    const {text}=translateSIM2ES(val);
+    $out.textContent=text||"--";
+    lastLearnedCount=0;
+  }
+  refreshMeta();
+}
+
+/* Inicial */
+setDir(DIR.ES2SIM);
+refreshMeta();
+updateHostIndicators();
+</script>
+</body>
+</html>  .small{font-size:.85rem}
   .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#071b20;padding:6px 10px;border-radius:999px}
   .state{display:flex;gap:8px;flex-wrap:wrap}
   .ok{color:var(--accent-strong)} .warn{color:var(--accent-warn)}
