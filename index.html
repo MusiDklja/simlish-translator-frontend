@@ -56,6 +56,9 @@
   .confList{margin-top:10px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#06181e}
   .confItem{padding:8px;border:1px solid var(--line);border-radius:10px;margin-top:8px;background:#071b20}
   .confItem b{color:var(--accent)}
+  /* Import */
+  .impGrid{display:grid;gap:8px}
+  .impActions{display:flex;gap:8px;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -148,6 +151,27 @@
           <button id="btnCreate" class="btn">Guardar</button>
           <span class="small muted"></span>
         </div>
+
+        <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+
+        <!-- ===== Importar diccionario (JSON) ===== -->
+        <div class="impGrid">
+          <h3 style="margin:0 0 4px 0">Importar diccionario (JSON)</h3>
+          <div class="small muted" style="margin-bottom:6px">Acepta respaldo exportado por esta app, <span class="kbd">{ es2sim, sim2es }</span>, o un array de pares <span class="kbd">[{es, sim}]</span> / <span class="kbd">[["es","sim"], ...]</span>.</div>
+          <input type="file" id="impFile" accept=".json,application/json"/>
+          <div class="chips" style="margin-top:6px">
+            <label class="chipOpt"><input type="radio" name="impMode" value="merge" checked> Fusionar (sobrescribe claves coincidentes)</label>
+            <label class="chipOpt"><input type="radio" name="impMode" value="replace"> Reemplazar todo (solo Usuario)</label>
+            <label class="chipOpt"><input type="checkbox" id="impBackup" checked> Respaldar antes de importar</label>
+          </div>
+          <div class="impActions" style="margin-top:6px">
+            <button id="impPreview" class="btn sec">Vista previa</button>
+            <button id="impApply" class="btn" disabled>Importar</button>
+          </div>
+          <div id="impInfo" class="small muted" style="margin-top:6px">Selecciona un archivo y pulsa “Vista previa”.</div>
+        </div>
+        <!-- ===== /Importar diccionario ===== -->
+
       </div>
     </div>
     <!-- ===== /Panel secreto ===== -->
@@ -574,14 +598,7 @@ catch{ const ta=document.createElement("textarea"); ta.value=txt; document.body.
 $demo.addEventListener("click", ()=>{ if(CURRENT_DIR===DIR.ES2SIM){ $in.value="Ayer cociné sopa caliente, hoy la estoy sirviendo y mañana la voy a compartir."; } else { $in.value="Sul sul! Su laa! Dag dag! Da vaa."; } doTranslate(); });
 $exportBtn.addEventListener("click", ()=>{
   // Un único respaldo con user + history
-  const payload = { core_version: CORE_VERSION, exported_at: new Date().toISOString(), user: USER, history: HISTORY };
-  const data = JSON.stringify(payload, null, 2);
-  const blob=new Blob([data], {type:"application/json"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download=`simlish-backup-v${CORE_VERSION}.json`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  exportBackup();
 });
 
 /* ===================== CONFLICTOS UI ===================== */
@@ -717,18 +734,11 @@ function resolveConflictBySynonyms(sim){
 
   if(all.size===0){ alert("Nada que fusionar."); return; }
 
-  // Construir string "a / b / c" en forma bonita (con acentos originales si existen en alguna fuente)
-  // Para simplicidad usamos las claves normales; el usuario puede editar luego si quiere diacríticos exactos.
   const synList = Array.from(all);
   const joined = synList.join(" / ");
 
-  // Actualizar sim2es
   USER.sim2es[kSim] = joined;
-
-  // Asegurar es2sim para cada variante
-  for(const es of synList){
-    USER.es2sim[es] = sim;
-  }
+  for(const es of synList){ USER.es2sim[es] = sim; }
 
   saveUser(USER); refreshMeta();
   if($confList && $confList.style.display!=="none"){ renderConflictsList(scanConflicts()); }
@@ -782,6 +792,186 @@ function flushViaBeacon(){ if(!dirtySinceLastPush) return;
 window.addEventListener("pagehide", flushViaBeacon);
 document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") flushViaBeacon(); });
 window.addEventListener("beforeunload", flushViaBeacon);
+
+/* ===================== EXPORT (reutilizable) ===================== */
+function exportBackup(filename){
+  const payload = { core_version: CORE_VERSION, exported_at: new Date().toISOString(), user: USER, history: HISTORY };
+  const data = JSON.stringify(payload, null, 2);
+  const blob=new Blob([data], {type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download= filename || `simlish-backup-v${CORE_VERSION}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+/* ===================== IMPORTADOR ===================== */
+const $impFile = document.getElementById("impFile");
+const $impPreview = document.getElementById("impPreview");
+const $impApply = document.getElementById("impApply");
+const $impInfo = document.getElementById("impInfo");
+const $impBackup = document.getElementById("impBackup");
+let IMPORT_CANDIDATE = null;
+let IMPORT_SUMMARY = null;
+
+function getImpMode(){
+  const r = Array.from(document.querySelectorAll('input[name="impMode"]')).find(x=>x.checked);
+  return r ? r.value : "merge";
+}
+
+function readFileAsText(file){
+  return new Promise((res, rej)=>{
+    const fr = new FileReader();
+    fr.onload = ()=> res(String(fr.result||""));
+    fr.onerror = ()=> rej(new Error("No se pudo leer el archivo."));
+    fr.readAsText(file, "utf-8");
+  });
+}
+
+function normalizeImportedJSON(raw){
+  // Acepta: respaldo exportado, {es2sim, sim2es}, o array de pares
+  const notices=[];
+  let user=null, history=[];
+  if(raw && typeof raw==="object"){
+    if(raw.user && (raw.user.es2sim || raw.user.sim2es)){
+      user = raw.user;
+      if(Array.isArray(raw.history)) history = raw.history.slice(-10);
+    }else if(raw.es2sim || raw.sim2es){
+      user = { es2sim: raw.es2sim||{}, sim2es: raw.sim2es||{} };
+    }else if(Array.isArray(raw)){
+      // puede ser array de arrays o de objetos
+      const pairs = [];
+      for(const item of raw){
+        if(Array.isArray(item) && item.length>=2){ pairs.push([item[0], item[1]]); }
+        else if(item && typeof item==="object" && ("es" in item) && ("sim" in item)){ pairs.push([item.es, item.sim]); }
+      }
+      user = { es2sim:{}, sim2es:{} };
+      for(const [es, sim] of pairs){
+        const kEs=normEs(es), kSim=normSim(sim);
+        if(!kEs || !kSim) continue;
+        if(!user.es2sim[kEs]) user.es2sim[kEs]=String(sim);
+        if(!user.sim2es[kSim]) user.sim2es[kSim]=String(es);
+      }
+      notices.push(`Detectado array de pares (${pairs.length}).`);
+    }
+  }
+  if(!user) throw new Error("Estructura no reconocida. Usa respaldo exportado, {es2sim, sim2es} o array de pares.");
+  // Normaliza: construir sim2es a partir de es2sim si falta o para completar huecos
+  const es2sim = {}; const sim2es = {};
+  for(const [esKey, simVal] of Object.entries(user.es2sim||{})){
+    const kEs = normEs(esKey); const simStr = String(simVal||"").trim();
+    if(!kEs || !simStr) continue;
+    es2sim[kEs] = simStr;
+    const kSim = normSim(simStr);
+    sim2es[kSim] = sim2es[kSim] ? `${sim2es[kSim]} / ${esKey}` : esKey;
+  }
+  for(const [simKey, esVal] of Object.entries(user.sim2es||{})){
+    const kSim = normSim(simKey); const esStr = String(esVal||"").trim();
+    if(!kSim || !esStr) continue;
+    if(!sim2es[kSim]) sim2es[kSim] = esStr;
+    const kEs = normEs(esStr);
+    if(!es2sim[kEs]) es2sim[kEs] = simKey;
+  }
+  return { user: { es2sim, sim2es }, history, notices };
+}
+
+function summarizeImport(candidate, mode){
+  const curES = USER.es2sim||{}; const curSIM = USER.sim2es||{};
+  const newES = candidate.user.es2sim||{}; const newSIM = candidate.user.sim2es||{};
+
+  let addedES=0, updatedES=0, untouchedES=0;
+  for(const [es, sim] of Object.entries(newES)){
+    if(!(es in curES)) addedES++;
+    else if(curES[es]!==sim) updatedES++;
+    else untouchedES++;
+  }
+  const totalPostES = mode==="replace" ? Object.keys(newES).length : Object.keys({...curES, ...newES}).length;
+
+  // SIM lado informativo (no bloquea)
+  let addedSIM=0, updatedSIM=0, untouchedSIM=0;
+  for(const [sim, es] of Object.entries(newSIM)){
+    if(!(sim in curSIM)) addedSIM++;
+    else if(normEs(curSIM[sim])!==normEs(es)) updatedSIM++;
+    else untouchedSIM++;
+  }
+
+  const conflicts = scanConflicts(); // actual (antes de importar)
+  return {
+    text: [
+      `Modo: ${mode==="replace"?"Reemplazar todo":"Fusionar"}.`,
+      `ES→SIM: +${addedES} nuevas, ${updatedES} actualizadas, ${untouchedES} sin cambios.`,
+      `SIM→ES: +${addedSIM} nuevas, ${updatedSIM} actualizadas, ${untouchedSIM} sin cambios.`,
+      `Total ES (post-import estimado): ${totalPostES}.`,
+      candidate.notices?.length ? `Notas: ${candidate.notices.join(" · ")}` : null,
+      conflicts.length ? `Conflictos actuales detectados: ${conflicts.length}. (Se re-escaneará luego de importar)` : `Sin conflictos actuales.`
+    ].filter(Boolean).join(" ")
+  };
+}
+
+function applyImport(candidate, mode){
+  if(mode==="replace"){
+    USER = defaultUserStore();
+    USER.es2sim = {...candidate.user.es2sim};
+    USER.sim2es = {...candidate.user.sim2es};
+  }else{ // merge (importa y sobreescribe claves coincidentes)
+    // ES→SIM: import gana
+    for(const [kEs, sim] of Object.entries(candidate.user.es2sim||{})){
+      const prevSim = USER.es2sim[kEs];
+      if(prevSim && normSim(prevSim)!==normSim(sim)){ delete USER.sim2es[normSim(prevSim)]; }
+      USER.es2sim[kEs] = String(sim);
+      USER.sim2es[normSim(sim)] = USER.sim2es[normSim(sim)] ? USER.sim2es[normSim(sim)] : kEs;
+    }
+    // SIM→ES: añade si no existe sim aún
+    for(const [kSim, es] of Object.entries(candidate.user.sim2es||{})){
+      if(!USER.sim2es[kSim]) USER.sim2es[kSim] = String(es);
+      const kEs = normEs(es);
+      if(!USER.es2sim[kEs]) USER.es2sim[kEs] = kSim;
+    }
+  }
+  // History: si llegó, actualizamos las últimas 10
+  if(Array.isArray(candidate.history) && candidate.history.length){
+    HISTORY = candidate.history.slice(-10);
+    saveHistory(HISTORY);
+  }
+  saveUser(USER);
+  refreshMeta();
+}
+
+/* Eventos Import */
+$impPreview?.addEventListener("click", async ()=>{
+  if(!(await unlockPanelIfNeeded())) return;
+  const file = $impFile?.files?.[0];
+  if(!file){ alert("Selecciona un archivo .json"); return; }
+  try{
+    const txt = await readFileAsText(file);
+    const raw = JSON.parse(txt);
+    const cand = normalizeImportedJSON(raw);
+    IMPORT_CANDIDATE = cand;
+    const mode = getImpMode();
+    const summary = summarizeImport(cand, mode);
+    IMPORT_SUMMARY = summary;
+    $impInfo.textContent = `Vista previa OK. ${summary.text}`;
+    $impApply.disabled = false;
+  }catch(e){
+    IMPORT_CANDIDATE = null; IMPORT_SUMMARY = null;
+    $impApply.disabled = true;
+    $impInfo.textContent = `Error: ${(e&&e.message)||"JSON inválido"}.`;
+  }
+});
+
+$impApply?.addEventListener("click", ()=>{
+  if(!IMPORT_CANDIDATE){ alert("Primero genera la vista previa."); return; }
+  const mode = getImpMode();
+  if($impBackup?.checked){ exportBackup(`simlish-backup-pre-import-v${CORE_VERSION}.json`); }
+  applyImport(IMPORT_CANDIDATE, mode);
+  // limpiar estados
+  IMPORT_CANDIDATE = null; IMPORT_SUMMARY = null;
+  $impApply.disabled = true;
+  $impInfo.textContent = "Importación realizada. Diccionario actualizado y sincronizando con el host…";
+  // refrescar conflictos si el panel está desplegado
+  const listVisible = document.getElementById("confList")?.style.display !== "none";
+  if(listVisible){ renderConflictsList(scanConflicts()); }
+});
 
 /* ===================== TRADUCIR ===================== */
 function doTranslate(){
