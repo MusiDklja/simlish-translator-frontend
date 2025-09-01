@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Simlish Translator · ES ⇄ SIM · Core v3.1</title>
-<meta name="description" content="Traductor bidireccional Español ⇄ Simlish con aprendizaje y sincronización estricta a backend.">
+<title>Simuch Translator · ES ⇄ SIMUCH · Core v3.1</title>
+<meta name="description" content="Traductor bidireccional Español ⇄ Simuch con aprendizaje y sincronización estricta a backend.">
 <!-- CSP: solo self y tu backend en Render -->
 <meta http-equiv="Content-Security-Policy"
   content="default-src ; connect-src 'self' https://api.countapi.xyz;'self';
@@ -15,7 +15,8 @@
            base-uri 'self';
            frame-ancestors 'self'">
 <style>
-  :root{ --bg:#06141a; --bg2:#071e24; --ink:#e6f7f4; --muted:#93c5c9; --line:#0f2e35; --accent:#22d3a6; --accent-strong:#10b981; --accent-warn:#eab308; --tiktok:#38bdf8; }
+  :root{
+  --accent-alt:#9d4edd; --bg:#06141a; --bg2:#071e24; --ink:#e6f7f4; --muted:#93c5c9; --line:#0f2e35; --accent:#ff7b2d; --accent-strong:#ffb02e; --accent-warn:#eab308; --tiktok:#38bdf8; }
   *{box-sizing:border-box}
   html,body{height:100%}
   body{ margin:0; background:radial-gradient(1200px 800px at 15% -10%, #0a2b2f 0%, transparent 50%), linear-gradient(180deg,#041017,#06141a 35%, #06141a 100%); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow-x:hidden; }
@@ -80,10 +81,55 @@
   }
 </style>
 
+
+<!-- MUSI THEME OVERRIDE (purple background + noise) -->
+<style id="musi-theme-override">
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background:
+      linear-gradient(135deg, #9d4edd 0%, #5a189a 50%, #240046 100%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='table' tableValues='0 0 0 0 .05 .08 .1 .12 .14 .16 .18 .2'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    background-blend-mode: overlay, normal;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    background-size: cover;
+    color: var(--ink);
+    overflow-x: hidden;
+  }
+
+  /* Cards ligeramente translúcidas en morado */
+  .card, .panel, .box{
+    background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0)), var(--bg2);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+  }
+
+  /* Botón/pill naranja con degradé + ruido sutil encima */
+  .btn, .pill, .dirbtn {
+    background-image:
+      linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='1' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='table' tableValues='0 0 .04 .06 .08 .1 .12 .14'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    background-blend-mode: overlay, normal;
+    color: #24110a;
+    border: none;
+  }
+
+  /* Botón secundario púrpura (mantener identidad) */
+  .btn.sec {
+    background-image:
+      linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0)),
+      linear-gradient(180deg, #3b0a6f, #2b0652);
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+</style>
+
 </head>
 <body>
   <header>
-    <h1>Simlish Translator <span class="pill">ES ⇄ SIM · Core v3.1</span></h1>
+    <h1>Simuch Translator <span class="pill">ES ⇄ SIMUCH · Core v3.1</span></h1>
   </header>
 
   <main class="wrap">
