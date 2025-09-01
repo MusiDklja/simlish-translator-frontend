@@ -3,72 +3,44 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Simuch Translator · ES ⇄ SIMUCH · Core v3.1</title>
-<meta name="description" content="Traductor bidireccional Español ⇄ Simuch con aprendizaje y sincronización estricta a backend.">
-<!-- CSP: self + backend + contador -->
+<title>Simlish Translator · ES ⇄ SIM · Core v3.1</title>
+<meta name="description" content="Traductor bidireccional Español ⇄ Simlish con aprendizaje y sincronización estricta a backend.">
+<!-- CSP: solo self y tu backend en Render -->
 <meta http-equiv="Content-Security-Policy"
-  content="default-src 'self';
-           connect-src 'self' https://simlish-translator-backend.onrender.com https://api.countapi.xyz;
+  content="default-src ; connect-src 'self' https://api.countapi.xyz;'self';
+           connect-src 'self' https://simlish-translator-backend.onrender.com;
            img-src 'self' https: data:;
            script-src 'self' 'unsafe-inline';
            style-src  'self' 'unsafe-inline';
            base-uri 'self';
            frame-ancestors 'self'">
 <style>
-  /* ===== PALETA SIMUCH (naranja↔púrpura con ruido sutil) ===== */
-  :root{
-    --bg:#0d0a12;            /* fondo base oscuro púrpura */
-    --bg2:#130f1d;           /* tarjetas/paneles */
-    --ink:#f7f6fb;           /* texto principal */
-    --muted:#cbbfe2;         /* texto secundario */
-    --line:#241b33;          /* líneas/bordes */
-
-    --accent:#ff7b2d;        /* naranja principal */
-    --accent-strong:#ffb02e; /* amarillo-naranja (hover/énfasis) */
-    --accent-warn:#eab308;   /* advertencias existentes */
-    --tiktok:#38bdf8;        /* enlace existente */
-
-    /* extras suaves */
-    --grad-soft: linear-gradient(135deg, rgba(255,176,46,.14), rgba(109,52,255,.14));
-  }
+  :root{ --bg:#06141a; --bg2:#071e24; --ink:#e6f7f4; --muted:#93c5c9; --line:#0f2e35; --accent:#22d3a6; --accent-strong:#10b981; --accent-warn:#eab308; --tiktok:#38bdf8; }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{
-    margin:0;
-    /* degradé + overlay de ruido (SVG inline) */
-    background:
-      var(--grad-soft),
-      #0d0a12;
-    color:var(--ink);
-    font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;
-    overflow-x:hidden;
-    background-image:
-      var(--grad-soft),
-      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='table' tableValues='0 0 0 0 .05 .08 .1 .12 .14 .16 .18 .2'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-    background-blend-mode: overlay, normal;
-  }
-  header{padding:20px 24px;border-bottom:1px solid var(--line);background:#0f0b1988;backdrop-filter:blur(6px)}
+  body{ margin:0; background:radial-gradient(1200px 800px at 15% -10%, #0a2b2f 0%, transparent 50%), linear-gradient(180deg,#041017,#06141a 35%, #06141a 100%); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow-x:hidden; }
+  header{padding:20px 24px;border-bottom:1px solid var(--line);background:#06141acc;backdrop-filter:blur(6px)}
   h1{margin:0;font-size:1.25rem;display:flex;gap:10px;align-items:center}
-  .pill{display:inline-block;background:linear-gradient(180deg,var(--accent) 0%, var(--accent-strong) 100%);color:#1a1028;padding:2px 10px;border-radius:999px;font-weight:800;font-size:.8rem}
+  .pill{display:inline-block;background:var(--accent);color:#04201a;padding:2px 10px;border-radius:999px;font-weight:800;font-size:.8rem}
   .wrap{padding:20px 24px 28px;display:grid;gap:16px;max-width:1100px;margin:0 auto}
   .grid{display:grid;gap:16px}
   @media(min-width:950px){.grid{grid-template-columns:1fr 1fr}}
-  .card{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:16px}
   label{display:block;margin-bottom:8px}
-  textarea,button,input,select{width:100%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#0f0b19;color:var(--ink)}
+  textarea,button,input,select{width:100%;padding:10px;border-radius:12px;border:1px solid var(--line);background:#071b20;color:var(--ink)}
   textarea{min-height:170px;resize:vertical}
   .row{display:grid;gap:12px;grid-template-columns:1fr 1fr}
-  .btn{cursor:pointer;transition:filter .15s ease, transform .05s ease;background:linear-gradient(180deg,var(--accent) 0%, var(--accent-strong) 100%);color:#1a1028;font-weight:800;border:none;border-radius:12px;box-shadow:0 6px 20px rgba(178,92,255,.15)}
+  .btn{cursor:pointer;transition:filter .15s ease, transform .05s ease;background:linear-gradient(180deg,var(--accent) 0%, var(--accent-strong) 100%);color:#052018;font-weight:800;border:none}
   .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(1px)}
-  .btn.sec{background:#0f0b19;border:1px solid var(--line);color:var(--ink);font-weight:600}
-  .out{white-space:pre-wrap;min-height:170px;border-radius:12px;border:1px dashed var(--line);padding:10px;background:#0d0a12;word-break:break-word;overflow-wrap:anywhere}
+  .btn.sec{background:#071b20;border:1px solid var(--line);color:var(--ink);font-weight:600}
+  .out{white-space:pre-wrap;min-height:170px;border-radius:12px;border:1px dashed var(--line);padding:10px;background:#06141a;word-break:break-word;overflow-wrap:anywhere}
   .muted{color:var(--muted);font-size:.92rem}
   .small{font-size:.85rem}
-  .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#0f0b19;padding:6px 10px;border-radius:999px}
+  .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#071b20;padding:6px 10px;border-radius:999px}
   .state{display:flex;gap:8px;flex-wrap:wrap}
   .ok{color:var(--accent-strong)} .warn{color:var(--accent-warn)}
   .dirbtn{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;width:auto;min-width:180px}
-  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0f0b19;border:1px solid #2a2f40;border-bottom-width:2px;border-radius:6px;padding:1px 6px}
+  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#071b20;border:1px solid #2a2f40;border-bottom-width:2px;border-radius:6px;padding:1px 6px}
   details summary{cursor:pointer}
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   a{color:var(--tiktok);text-decoration:none;font-weight:600}
@@ -76,22 +48,42 @@
   /* Admin discreto */
   .secret{max-width:1100px;margin:0 auto;padding:0 24px 12px}
   .list{display:grid;gap:8px;margin-top:8px}
-  .item{display:grid;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#0f0b19}
+  .item{display:grid;gap:8px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#06181e}
   .item .row2{display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px}
   .item small{color:var(--muted)}
   .chips{display:flex;gap:8px;flex-wrap:wrap}
-  .chipOpt{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#0f0b19;padding:6px 10px;border-radius:999px}
-  .confList{margin-top:10px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#0f0b19}
-  .confItem{padding:8px;border:1px solid var(--line);border-radius:10px;margin-top:8px;background:#0f0b19}
+  .chipOpt{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#071b20;padding:6px 10px;border-radius:999px}
+  .confList{margin-top:10px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#06181e}
+  .confItem{padding:8px;border:1px solid var(--line);border-radius:10px;margin-top:8px;background:#071b20}
   .confItem b{color:var(--accent)}
   /* Import */
   .impGrid{display:grid;gap:8px}
   .impActions{display:flex;gap:8px;flex-wrap:wrap}
 </style>
+
+<!-- MUSI OVERRIDE: fondo púrpura global -->
+<style id="musi-theme-override">
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background:
+      linear-gradient(135deg, #9d4edd 0%, #5a189a 50%, #240046 100%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='table' tableValues='0 0 0 0 .05 .08 .1 .12 .14 .16 .18 .2'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    background-blend-mode: overlay, normal;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    background-size: cover;
+    color: var(--ink);
+    font-family: Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+    overflow-x: hidden;
+  }
+</style>
+
 </head>
 <body>
   <header>
-    <h1>Simuch Translator <span class="pill">ES ⇄ SIMUCH · Core v3.1</span></h1>
+    <h1>Simlish Translator <span class="pill">ES ⇄ SIM · Core v3.1</span></h1>
   </header>
 
   <main class="wrap">
@@ -1044,41 +1036,6 @@ function init(){
   refreshMeta();
 }
 init();
-</script>
-
-<!-- ===== Contador de visitas (badge flotante) ===== -->
-<script>
-(function() {
-  const NAMESPACE = 'musi-simuch';
-  const KEY = 'simuch-translator';
-  const API = `https://api.countapi.xyz/hit/${encodeURIComponent(NAMESPACE)}/${encodeURIComponent(KEY)}`;
-
-  function crearBadge(conteo) {
-    const badge = document.createElement('div');
-    badge.setAttribute('id','simuch-visit-badge');
-    badge.setAttribute('aria-live','polite');
-    badge.style.position = 'fixed';
-    badge.style.right = '12px';
-    badge.style.bottom = '12px';
-    badge.style.zIndex = '99999';
-    badge.style.padding = '8px 12px';
-    badge.style.borderRadius = '999px';
-    badge.style.boxShadow = '0 4px 16px rgba(0,0,0,.2)';
-    badge.style.fontSize = '12px';
-    badge.style.lineHeight = '1';
-    badge.style.userSelect = 'none';
-    badge.style.background = getComputedStyle(document.documentElement).getPropertyValue('--bg2') || '#130f1d';
-    badge.style.color = getComputedStyle(document.documentElement).getPropertyValue('--ink') || '#f7f6fb';
-    badge.style.border = `1px solid ${getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#ff7b2d'}`;
-    badge.textContent = `Visitas: ${(+conteo||1).toLocaleString('es-CL')}`;
-    document.body.appendChild(badge);
-  }
-
-  fetch(API)
-    .then(r => r.json())
-    .then(data => crearBadge((data && data.value) ? data.value : 1))
-    .catch(() => crearBadge(1));
-})();
 </script>
 </body>
   </html>
