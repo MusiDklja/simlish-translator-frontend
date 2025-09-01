@@ -7,7 +7,7 @@
 <meta name="description" content="Traductor bidireccional Español ⇄ Simuch con aprendizaje y sincronización estricta a backend.">
 <!-- CSP: solo self y tu backend en Render -->
 <meta http-equiv="Content-Security-Policy"
-  content="default-src ; connect-src 'self' https://api.countapi.xyz;'self';
+  content="default-src ; connect-src  https://simlish-translator-backend.onrender.com https://api.countapi.xyz'self' https://api.countapi.xyz;'self';
            connect-src 'self' https://simlish-translator-backend.onrender.com;
            img-src 'self' https: data:;
            script-src 'self' 'unsafe-inline';
@@ -807,12 +807,25 @@ function resolveConflictBySynonyms(sim){
 }
 
 /* ===================== SYNC ===================== */
+
 function updateHostIndicators(){
   const setTag = (tag, ok) => {
     $hostState.textContent = tag;
     $hostChip.classList.toggle("ok", ok===true);
     $hostChip.classList.toggle("warn", ok===false);
   };
+  const root = BACKEND_URL.replace(/\/$/, '');
+  const tryPing = (url) => fetch(url, { method:"GET", mode:"cors", cache:"no-store" });
+  tryPing(root + "/")
+    .then(r => r.ok ? r.text() : Promise.reject())
+    .then(() => setTag("OK", true))
+    .catch(() => {
+      tryPing(root + "/ping")
+        .then(r => r.ok ? r.text() : Promise.reject())
+        .then(() => setTag("OK", true))
+        .catch(() => setTag("Sin respuesta", false));
+    });
+};
   fetch(BACKEND_URL, { method:"GET", mode:"cors", cache:"no-store" })
     .then(r => r.ok ? r.json().then(()=>setTag("OK",true)) : setTag("Sin respuesta",false))
     .catch(()=> setTag("Sin respuesta",false));
