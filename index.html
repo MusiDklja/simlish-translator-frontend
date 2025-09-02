@@ -1069,5 +1069,176 @@ init();
 })();
 </script>
 
+
+<!-- Simuch DB Loader (core moved to JSON) -->
+<script>
+(function(){
+  const DB_URL = "simuch-db.json";
+  const norm = s => (s||"").normalize("NFC").trim().toLowerCase();
+  function translateText(text, map){
+    if(!text) return "";
+    const src = norm(text);
+    const tokens = src.split(/(\s+|[,.!?;:()\"\-—–])/g);
+    const out = [];
+    for(let i=0;i<tokens.length;){
+      if(/^\s+$|[,.!?;:()\"\-—–]$/.test(tokens[i]||"")){ out.push(tokens[i++]); continue; }
+      let matched=null, jump=1;
+      for(let len=Math.min(8, tokens.length-i); len>=1; len--){
+        const chunk = tokens.slice(i,i+len).join("").replace(/\s+/g," ").trim();
+        if(!chunk) continue;
+        const key = norm(chunk);
+        if(map[key]){ matched = map[key]; jump = len; break; }
+      }
+      out.push(matched!=null ? matched : tokens[i]); i += jump;
+    }
+    return out.join("").replace(/\s+([,.!?;:])/g,"$1");
+  }
+  const $in  = document.querySelector("#in") || document.querySelector("textarea[name='in']");
+  const $out = document.querySelector("#out") || document.querySelector("textarea[name='out']");
+  const $btn = document.querySelector("#btnTraducir") || document.querySelector("button[data-action='translate']");
+  const $dir = document.querySelector("#dir-pill") || document.querySelector("[data-dir]");
+  function currentDir(){
+    const t = ($dir && $dir.textContent) || "";
+    return t.includes("ES → SIM") || t.includes("ES->SIM") ? "ES2SIM" : "SIM2ES";
+  }
+  let ES2SIM={}, SIM2ES={};
+  fetch(DB_URL, {cache:"no-store"})
+    .then(r=>r.json())
+    .then(db=>{
+      if(db.merged && db.merged.ES2SIM && db.merged.SIM2ES){
+        ES2SIM = db.merged.ES2SIM;
+        SIM2ES = db.merged.SIM2ES;
+      }else{
+        ES2SIM = Object.assign({}, db.user?.ES2SIM||{}, db.core?.ES2SIM||{});
+        SIM2ES = Object.assign({}, db.user?.SIM2ES||{}, db.core?.SIM2ES||{});
+      }
+      
+const doTranslate = () => {
+  if(!$in || !$out) return;
+  const text = $in.value || "";
+  const srcNorm = (text||"").normalize("NFC").trim().toLowerCase();
+  if(!srcNorm){ $out.value = ""; return; }
+
+  // Tokenize
+  const tokens = srcNorm.split(/(\s+|[,.!?;:()\"\-—–])/g).filter(t=>t && !/^\s+$/.test(t));
+  // Quick scoring: count token hits in each dictionary
+  let scoreES = 0, scoreSIM = 0;
+  for(const t of tokens){
+    if(ES2SIM[t]) scoreES++;
+    if(SIM2ES[t]) scoreSIM++;
+  }
+
+  // Heuristics
+  let chosenDir = null;
+  if(scoreSIM > scoreES) chosenDir = "SIM2ES";
+  else if(scoreES > scoreSIM) chosenDir = "ES2SIM";
+  else chosenDir = currentDir();
+
+  const map = chosenDir === "ES2SIM" ? ES2SIM : SIM2ES;
+  $out.value = translateText(text, map);
+};
+
+      };
+      if($btn) $btn.addEventListener("click", doTranslate);
+      if($in)  $in.addEventListener("input", doTranslate);
+      doTranslate();
+      const $import = document.querySelector("[data-action='import-json']") || document.querySelector("#btnImportar");
+      if($import){
+        $import.addEventListener("change", async (ev)=>{
+          try{
+            const file = ev.target.files?.[0]; if(!file) return;
+            const txt = await file.text();
+            const j = JSON.parse(txt);
+            const normMap = (m) => {
+              const o={}; for (const k in (m||{})) o[norm(k)] = (m[k]||"").toString(); return o;
+            };
+            const uES = normMap(j.ES2SIM || j["ES→SIM"] || j.user?.ES2SIM);
+            const uSE = normMap(j.SIM2ES || j["SIM→ES"] || j.user?.SIM2ES);
+            ES2SIM = Object.assign({}, uES, db.core?.ES2SIM||{});
+            SIM2ES = Object.assign({}, uSE, db.core?.SIM2ES||{});
+            doTranslate();
+          }catch(e){ console.error("Import JSON failed", e); }
+        });
+      }
+    }).catch(e=>console.error("DB load failed", e));
+})();
+</script>
+
+<!-- Guardar con espejo (core > usuario) -->
+<script>
+(function(){
+  const norm = s => (s||"").normalize("NFC").trim().toLowerCase();
+
+  const $btnSave = document.querySelector("#btnGuardar, [data-action='save-pair']");
+  const $src     = document.querySelector("#srcSave, [data-field='src']");
+  const $dst     = document.querySelector("#dstSave, [data-field='dst']");
+  const $dir     = document.querySelector("#dir-pill, [data-dir]");
+
+  window.db = window.db || { core:{}, user:{} };
+  window.ES2SIM = window.ES2SIM || {};
+  window.SIM2ES = window.SIM2ES || {};
+
+  function currentDir(){
+    const t = ($dir && $dir.textContent) || "";
+    return t.includes("ES → SIM") || t.includes("ES->SIM") ? "ES2SIM" : "SIM2ES";
+  }
+
+  function applyUserSave(localDB, dir, srcRaw, dstRaw){
+    const src = norm(srcRaw), dst = norm(dstRaw);
+    if (!localDB.user) localDB.user = { ES2SIM:{}, SIM2ES:{} };
+
+    if (dir === "ES2SIM") {
+      if ((localDB.core?.ES2SIM?.[src] || "") !== dst) localDB.user.ES2SIM[src] = dst;
+      if ((localDB.core?.SIM2ES?.[dst] || "") !== src) localDB.user.SIM2ES[dst] = src;
+    } else {
+      if ((localDB.core?.SIM2ES?.[src] || "") !== dst) localDB.user.SIM2ES[src] = dst;
+      if ((localDB.core?.ES2SIM?.[dst] || "") !== src) localDB.user.ES2SIM[dst] = src;
+    }
+    window.ES2SIM = Object.assign({}, localDB.user.ES2SIM || {}, localDB.core?.ES2SIM || {});
+    window.SIM2ES = Object.assign({}, localDB.user. SIM2ES || {}, localDB.core?.SIM2ES || {});
+    return { ES2SIM: window.ES2SIM, SIM2ES: window.SIM2ES };
+  }
+
+  function translateText(text, map){
+    if(!text) return "";
+    const nrm = s => (s||"").normalize("NFC").trim().toLowerCase();
+    const src = nrm(text);
+    const tokens = src.split(/(\s+|[,.!?;:()\"\-—–])/g);
+    const out = [];
+    for (let i=0;i<tokens.length;){
+      if (/^\s+$|[,.!?;:()\"\-—–]$/.test(tokens[i]||"")) { out.push(tokens[i++]); continue; }
+      let matched=null, jump=1;
+      for (let len=Math.min(8,tokens.length-i); len>=1; len--){
+        const chunk = tokens.slice(i,i+len).join("").replace(/\s+/g," ").trim();
+        if (!chunk) continue;
+        const key = nrm(chunk);
+        if (map[key]) { matched = map[key]; jump = len; break; }
+      }
+      out.push(matched!=null ? matched : tokens[i]); i += jump;
+    }
+    return out.join("").replace(/\s+([,.!?;:])/g, "$1");
+  }
+
+  $btnSave && $btnSave.addEventListener("click", () => {
+    try {
+      const dir = currentDir();
+      const src = $src && $src.value || "";
+      const dst = $dst && $dst.value || "";
+      if (!src || !dst) return;
+
+      const fused = applyUserSave(window.db, dir, src, dst);
+
+      const $in  = document.querySelector("#in, textarea[name='in']");
+      const $out = document.querySelector("#out, textarea[name='out']");
+      if ($in && $out) {
+        const map = dir === "ES2SIM" ? fused.ES2SIM : fused.SIM2ES;
+        $out.value = translateText($in.value, map);
+      }
+    } catch(e) {
+      console.error("Guardar con espejo falló:", e);
+    }
+  });
+})();
+</script>
 </body>
   </html>
