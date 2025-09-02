@@ -1240,5 +1240,222 @@ const doTranslate = () => {
   });
 })();
 </script>
+
+<!-- Export/Import UI enhancers: "punto" toggles for core -->
+<script>
+(function(){
+  // Utility
+  const $ = (sel, ctx=document) => ctx.querySelector(sel);
+  const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
+  const byText = (tag, txt) => {
+    const els = $$(tag);
+    return els.find(el => (el.textContent||"").toLowerCase().includes(txt.toLowerCase()));
+  };
+  const saveBlob = (obj, fname) => {
+    const blob = new Blob([typeof obj==="string" ? obj : JSON.stringify(obj, null, 2)], {type: "application/json;charset=utf-8"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+    a.remove();
+  };
+  const stamp = () => {
+    const d = new Date();
+    const pad = n => String(n).padStart(2,"0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}`;
+  };
+
+  // Wait a tick so previous loaders set window.db, ES2SIM/SIM2ES
+  setTimeout(()=>{
+    // ---------- EXPORT ----------
+    // Find existing export button by text (no IDs were guaranteed)
+    const exportBtn = byText("button", "Exportar respaldo") || byText("*", "Exportar respaldo (.json)");
+    if (exportBtn && !exportBtn.dataset.coreDot) {
+      // Create a small circular "dot" next to the export button
+      const dot = document.createElement("button");
+      dot.textContent = "•";
+      dot.title = "Exportar: tocar para elegir con/sin core";
+      Object.assign(dot.style, {
+        marginLeft: "8px",
+        width: "28px",
+        height: "28px",
+        borderRadius: "999px",
+        border: "none",
+        cursor: "pointer",
+        boxShadow: "0 0 0 1px rgba(255,255,255,0.15) inset",
+      });
+      // Inherit theme-ish colors
+      dot.style.background = "var(--btn-secondary, rgba(255,255,255,0.08))";
+      dot.style.color = "var(--text, #fff)";
+      exportBtn.insertAdjacentElement("afterend", dot);
+      exportBtn.dataset.coreDot = "1";
+
+      // Tiny mode toggle menu
+      const menu = document.createElement("div");
+      menu.innerHTML = `
+        <div style="position:absolute; z-index:9999; background:rgba(0,0,0,.8); color:#fff; padding:8px 10px; border-radius:10px; font-size:14px; display:none;">
+          <label style="display:flex; gap:8px; align-items:center; margin:4px 0;">
+            <input type="radio" name="exp-core-mode" value="user" checked> Exportar solo Usuario
+          </label>
+          <label style="display:flex; gap:8px; align-items:center; margin:4px 0;">
+            <input type="radio" name="exp-core-mode" value="full"> Exportar con Core
+          </label>
+        </div>`;
+      document.body.appendChild(menu);
+      const panel = menu.firstElementChild;
+
+      const placePanel = () => {
+        const r = dot.getBoundingClientRect();
+        panel.style.left = (r.left + window.scrollX - 6) + "px";
+        panel.style.top  = (r.bottom + window.scrollY + 6) + "px";
+      };
+
+      dot.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        placePanel();
+        panel.style.display = (panel.style.display==="none" || !panel.style.display) ? "block" : "none";
+      });
+      document.addEventListener("click", ()=> panel.style.display="none");
+
+      // Hook exportBtn click to respect chosen mode (and keep original action if any)
+      const origClick = exportBtn.onclick;
+      exportBtn.onclick = (ev) => {
+        try{
+          const mode = (document.querySelector('input[name="exp-core-mode"]:checked')||{}).value || "user";
+          if(mode === "full"){
+            // Build full snapshot from window.db (core+user+merged). Fallback if missing.
+            const db = window.db || { core:{}, user:{}, merged:{} };
+            const full = {
+              version: db.version || "3.1",
+              core: db.core || {},
+              user: db.user || {},
+              merged: db.merged || {}
+            };
+            saveBlob(full, `simuch-db_${stamp()}.json`);
+            // prevent default if the old handler would also download
+            ev && ev.preventDefault();
+            return false;
+          } else {
+            // Let the original handler export SOLO usuario (como siempre)
+            if(typeof origClick === "function"){
+              return origClick.call(exportBtn, ev);
+            }
+            // If no handler, export minimal user maps from current db
+            const db = window.db || {user:{}};
+            const out = {
+              es2sim: (db.user && db.user.ES2SIM) || {},
+              sim2es: (db.user && db.user.SIM2ES) || {}
+            };
+            saveBlob(out, `simuch-user_${stamp()}.json`);
+            ev && ev.preventDefault();
+            return false;
+          }
+        }catch(e){
+          console.error("Export error:", e);
+        }
+      };
+    }
+
+    // ---------- IMPORT (admin panel) ----------
+    // Find import input and add a "dot" to pick mode
+    const importFile = document.querySelector('input[type="file"]');
+    // We try to narrow to the one inside the Importar diccionario section:
+    const importSection = Array.from(document.querySelectorAll("*")).find(el => /importar diccionario/i.test(el.textContent||""));
+    const importBtn = importSection && Array.from(importSection.querySelectorAll("button")).find(b => /importar$/i.test(b.textContent||""));
+    if (importSection && importBtn && !importBtn.dataset.coreDot) {
+      const dot2 = document.createElement("button");
+      dot2.textContent = "•";
+      dot2.title = "Importar: elegir si reemplaza solo Usuario o Core+Usuario";
+      Object.assign(dot2.style, {
+        marginLeft: "8px",
+        width: "28px",
+        height: "28px",
+        borderRadius: "999px",
+        border: "none",
+        cursor: "pointer",
+        boxShadow: "0 0 0 1px rgba(255,255,255,0.15) inset",
+        background: "var(--btn-secondary, rgba(255,255,255,0.08))",
+        color: "var(--text, #fff)"
+      });
+      importBtn.insertAdjacentElement("afterend", dot2);
+      importBtn.dataset.coreDot = "1";
+
+      const menu2 = document.createElement("div");
+      menu2.innerHTML = `
+        <div style="position:absolute; z-index:9999; background:rgba(0,0,0,.8); color:#fff; padding:8px 10px; border-radius:10px; font-size:14px; display:none;">
+          <label style="display:flex; gap:8px; align-items:center; margin:4px 0;">
+            <input type="radio" name="imp-core-mode" value="user" checked> Reemplazar solo Usuario
+          </label>
+          <label style="display:flex; gap:8px; align-items:center; margin:4px 0;">
+            <input type="radio" name="imp-core-mode" value="full"> Reemplazar Core + Usuario
+          </label>
+        </div>`;
+      document.body.appendChild(menu2);
+      const panel2 = menu2.firstElementChild;
+
+      const place2 = () => {
+        const r = dot2.getBoundingClientRect();
+        panel2.style.left = (r.left + window.scrollX - 6) + "px";
+        panel2.style.top  = (r.bottom + window.scrollY + 6) + "px";
+      };
+      dot2.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        place2();
+        panel2.style.display = (panel2.style.display==="none" || !panel2.style.display) ? "block" : "none";
+      });
+      document.addEventListener("click", ()=> panel2.style.display="none");
+
+      // Extend our loader's import handler if present
+      const fileInput = importSection.querySelector('input[type="file"]') || document.querySelector('input[type="file"]');
+      if(fileInput){
+        // Attach to existing button to run our merge after the app parses file
+        importBtn.addEventListener("click", async (ev)=>{
+          try {
+            const file = fileInput.files && fileInput.files[0];
+            if(!file) return; // let original flow show its warning
+            const txt = await file.text();
+            let j;
+            try { j = JSON.parse(txt); } catch{ j = null; }
+            if(!j) return; // fallback to original flow
+
+            const mode = (document.querySelector('input[name="imp-core-mode"]:checked')||{}).value || "user";
+            const norm = s => (s||"").normalize("NFC").trim().toLowerCase();
+            const normMap = (m) => { const o={}; for (const k in (m||{})) o[norm(k)] = (m[k]||"").toString(); return o; };
+
+            if(mode === "full" && j.core && j.user){
+              // Replace core+user entirely, rebuild merged
+              window.db = {
+                version: j.version || window.db?.version || "3.1",
+                core: j.core || {},
+                user: j.user || {}
+              };
+            } else {
+              // Only user maps (accept both formats)
+              const uES = normMap(j.es2sim || j.ES2SIM || j.user?.ES2SIM || j["ES→SIM"]);
+              const uSE = normMap(j.sim2es || j.SIM2ES || j.user?.SIM2ES || j["SIM→ES"]);
+              window.db = window.db || { core:{}, user:{} };
+              window.db.user = { ES2SIM: uES, SIM2ES: uSE };
+            }
+
+            // Rebuild merged (core > usuario)
+            const userES = window.db.user?.ES2SIM || {};
+            const userSE = window.db.user?.SIM2ES || {};
+            const coreES = window.db.core?.ES2SIM || {};
+            const coreSE = window.db.core?.SIM2ES || {};
+            window.ES2SIM = Object.assign({}, userES, coreES);
+            window.SIM2ES = Object.assign({}, userSE, coreSE);
+            ev.preventDefault(); // stop original handler if any
+          } catch(e){
+            console.error("Import extend error:", e);
+          }
+        }, true);
+      }
+    }
+  }, 100);
+})();
+</script>
+
 </body>
   </html>
