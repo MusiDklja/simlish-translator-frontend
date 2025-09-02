@@ -6,14 +6,7 @@
 <title>Simuch Translator · ES ⇄ SIMUCH · Core v3.1</title>
 <meta name="description" content="Traductor bidireccional Español ⇄ Simuch con aprendizaje y sincronización estricta a backend.">
 <!-- CSP: solo self y tu backend en Render -->
-<meta http-equiv="Content-Security-Policy"
-  content="default-src ; connect-src 'self' https://simlish-translator-backend.onrender.com https://api.countapi.xyz;'self';
-           connect-src 'self' https://simlish-translator-backend.onrender.com;
-           img-src 'self' https: data:;
-           script-src 'self' 'unsafe-inline';
-           style-src  'self' 'unsafe-inline';
-           base-uri 'self';
-           frame-ancestors 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://simlish-translator-backend.onrender.com; img-src 'self' https: data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; base-uri 'self'; frame-ancestors 'self'">
 <style>
   :root{ --bg:#06141a; --bg2:#071e24; --ink:#e6f7f4; --muted:#93c5c9; --line:#0f2e35; --accent:#22d3a6; --accent-strong:#10b981; --accent-warn:#eab308; --tiktok:#38bdf8; }
   *{box-sizing:border-box}
@@ -216,7 +209,7 @@
   <br>
   ☆ Creado por <b style="color:var(--accent)">&nbsp;Musi Dklja&nbsp;</b> (28 de Agosto del 2025)
   <br>
-  <img src="https://hits.sh/musidklja.github.io/simuch-translator.svg?label=Visitas&color=9d4edd&labelColor=ff7b2d&extraCount=200&style=flat-square" alt="Visitas" style="margin-top:8px"/>
+  <img src="https://hits.sh/https://musidklja.github.io/simuch-translator.svg?label=Visitas&color=9d4edd&labelColor=ff7b2d&extraCount=200&style=flat-square&v=6" alt="Visitas" style="margin-top:8px" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='https://hits.sh/musidklja.github.io/simuch-translator.svg?label=Visitas&color=9d4edd&labelColor=ff7b2d&extraCount=200&style=flat-square&v=6';">
 </footer>
 
 <script>
@@ -1053,21 +1046,7 @@ function init(){
 init();
 </script>
 
-<!-- Contador de visitas en footer -->
-<script>
-(function() {
-  const NAMESPACE = 'musi-simuch';
-  const KEY = 'simuch-translator';
-  const API = `https://api.countapi.xyz/hit/${encodeURIComponent(NAMESPACE)}/${encodeURIComponent(KEY)}`;
-  const el = document.getElementById('visit-counter');
-  function setCount(val){
-    if(el) el.textContent = "Visitas: " + val.toLocaleString('es-CL');
-  }
-  fetch(API).then(r=>r.json())
-    .then(d=> setCount((d && d.value) ? d.value : 1))
-    .catch(()=> setCount(1));
-})();
-</script>
+
 
 </body>
   </html>
