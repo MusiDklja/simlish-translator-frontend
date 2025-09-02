@@ -93,6 +93,35 @@
   }
 </style>
 
+
+<style>
+/* Auto-detect indicator LED */
+.auto-led {
+  display:inline-block;
+  width:12px; height:12px;
+  margin-left:8px;
+  border-radius:999px;
+  background: rgba(255,255,255,0.15);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+  vertical-align: middle;
+  transition: box-shadow .25s ease, background .25s ease, transform .25s ease, opacity .25s ease;
+  opacity:.6;
+}
+.auto-led.on-orange {
+  background: linear-gradient(135deg, #ffa63a, #ff7a00);
+  box-shadow: 0 0 10px 2px rgba(255,122,0,.55), 0 0 2px 1px rgba(255,255,255,.25) inset;
+  opacity:1;
+}
+.auto-led.on-purple {
+  background: linear-gradient(135deg, #7a2cff, #a33cff);
+  box-shadow: 0 0 10px 2px rgba(162,52,255,.55), 0 0 2px 1px rgba(255,255,255,.25) inset;
+  opacity:1;
+}
+.auto-led.pulse {
+  transform: scale(1.08);
+}
+</style>
+
 </head>
 <body>
   <header>
@@ -1118,7 +1147,7 @@ init();
 const doTranslate = () => {
   if(!$in || !$out) return;
   const raw = $in.value || "";
-  const srcNorm = (raw||"").normalize("NFC").trim().toLowerCase();
+  const srcNorm = (function(s){return (s||"").normalize("NFC").trim().toLowerCase().replace(/[0]/g,"o").replace(/[1|]/g,"l").replace(/[3]/g,"e").replace(/[4]/g,"a").replace(/[5]/g,"s").replace(/[7]/g,"t");})(raw);
   if(!srcNorm){ $out.value = ""; return; }
 
   // Tokenize words only
@@ -1133,15 +1162,39 @@ const doTranslate = () => {
   const total = Math.max(1, words.length);
   const esRatio = esHits / total;
   const simRatio = simHits / total;
+  // Single-word special case: decide by direct dictionary presence
+  if (words.length === 1) {
+    const w = words[0];
+    if (SIM2ES[w] && !ES2SIM[w]) {
+      // Treat as SIM input
+      if ($dir) $dir.textContent = "SIM → ES";
+      const map = SIM2ES;
+      $out.value = translateText(raw, map);
+      return;
+    } else if (ES2SIM[w] && !SIM2ES[w]) {
+      // Treat as ES input
+      if ($dir) $dir.textContent = "ES → SIM";
+      const map = ES2SIM;
+      $out.value = translateText(raw, map);
+      return;
+    } else if (SIM2ES[w] && ES2SIM[w]) {
+      // If in both, prefer SIM2ES to avoid retraducir Simuch pegado en ES→SIM
+      if ($dir) $dir.textContent = "SIM → ES";
+      const map = SIM2ES;
+      $out.value = translateText(raw, map);
+      return;
+    }
+  }
+
 
   // Confidence thresholds
-  const MIN_HITS = 2;
+  const MIN_HITS = 2; const MIN_HITS_SINGLE = 1;
   const THRESH   = 0.25; // 25% de tokens
 
   // Guess input language
   let guess = null; // "ES" | "SIM"
-  if (simHits >= MIN_HITS && simRatio >= THRESH && simHits > esHits) guess = "SIM";
-  else if (esHits >= MIN_HITS && esRatio >= THRESH && esHits > simHits) guess = "ES";
+  if ((simHits >= MIN_HITS && simRatio >= THRESH && simHits > esHits) || (simHits>=1 && esHits===0)) guess = "SIM";
+  else if ((esHits >= MIN_HITS && esRatio >= THRESH && esHits > simHits) || (esHits>=1 && simHits===0)) guess = "ES";
 
   // UI selected direction
   const pillText = ($dir && $dir.textContent) || "";
@@ -1149,28 +1202,34 @@ const doTranslate = () => {
 
   // Decide final direction
   let chosenDir = uiDir;
+  let autoUsed = false;
 
   // If input already looks like the TARGET language, FLIP and translate once
   // target of ES2SIM is SIM; target of SIM2ES is ES
   const targetLooksSIM = (uiDir === "ES2SIM" && guess === "SIM");
   const targetLooksES  = (uiDir === "SIM2ES" && guess === "ES");
   if (targetLooksSIM) {
+    autoUsed = true;
     chosenDir = "SIM2ES";
     if ($dir) $dir.textContent = "SIM → ES";
   } else if (targetLooksES) {
+    autoUsed = true;
     chosenDir = "ES2SIM";
     if ($dir) $dir.textContent = "ES → SIM";
   } else {
     // If guess contradicts UI, flip once to the guessed direction
     if (guess === "SIM" && uiDir === "ES2SIM") {
+      autoUsed = true;
       chosenDir = "SIM2ES";
       if ($dir) $dir.textContent = "SIM → ES";
     } else if (guess === "ES" && uiDir === "SIM2ES") {
+      autoUsed = true;
       chosenDir = "ES2SIM";
       if ($dir) $dir.textContent = "ES → SIM";
     }
   }
 
+  if(window.__autoLED){ window.__autoLED.set(autoUsed ? (chosenDir==="ES2SIM" ? "orange":"purple") : "off"); }
   const map = chosenDir === "ES2SIM" ? ES2SIM : SIM2ES;
   $out.value = translateText(raw, map);
 };
@@ -1490,6 +1549,32 @@ const doTranslate = () => {
       }
     }
   }, 100);
+})();
+</script>
+
+
+<script>
+(function(){
+  const $ = (s, c=document)=>c.querySelector(s);
+  function ensureAutoLED(){
+    const pill = document.querySelector("#dir-pill, [data-dir]") || Array.from(document.querySelectorAll("button, .badge, .pill")).find(el => /ES\s*[→>-]\s*SIM|SIM\s*[→>-]\s*ES/i.test(el.textContent||""));
+    if(!pill) return null;
+    if(pill._autoLED) return pill._autoLED;
+    const led = document.createElement("span");
+    led.className = "auto-led";
+    led.title = "Autodetección";
+    pill.insertAdjacentElement("afterend", led);
+    pill._autoLED = led;
+    return led;
+  }
+  window.__autoLED = { set: (mode)=>{
+      const led = ensureAutoLED(); if(!led) return;
+      led.classList.remove("on-orange","on-purple","pulse");
+      if(mode==="off"){ return; }
+      if(mode==="orange"){ led.classList.add("on-orange","pulse"); led.title = "Autodetección: ES → SIM"; }
+      if(mode==="purple"){ led.classList.add("on-purple","pulse"); led.title = "Autodetección: SIM → ES"; }
+      setTimeout(()=> led && led.classList.remove("pulse"), 300);
+    }};
 })();
 </script>
 
