@@ -7,13 +7,13 @@
 <meta name="description" content="Traductor bidireccional Español ⇄ Simuch con aprendizaje y sincronización estricta a backend.">
 <!-- CSP: solo self y tu backend en Render -->
 <meta http-equiv="Content-Security-Policy"
-  content="default-src ; connect-src 'self' https://simlish-translator-backend.onrender.com https://api.countapi.xyz;'self';
+  content="default-src ; connect-src 'self' https://simlish-translator-backend.onrender.com https://api.countapi.xyz https://hits.sh;'self';
            connect-src 'self' https://simlish-translator-backend.onrender.com;
            img-src 'self' https: data:;
            script-src 'self' 'unsafe-inline';
            style-src  'self' 'unsafe-inline';
            base-uri 'self';
-           frame-ancestors 'self'">
+           frame-ancestors 'self';">
 <style>
   :root{ --bg:#06141a; --bg2:#071e24; --ink:#e6f7f4; --muted:#93c5c9; --line:#0f2e35; --accent:#22d3a6; --accent-strong:#10b981; --accent-warn:#eab308; --tiktok:#38bdf8; }
   *{box-sizing:border-box}
@@ -248,6 +248,7 @@
         throw new Error("no-number");
       });
   }
+  // Try both, then set
   fetchCount(urlDesk).catch(()=>fetchCount(urlMobile))
     .then(n=> set(n + BASELINE))
     .catch(()=> set(BASELINE));
