@@ -216,7 +216,43 @@
   <br>
   ☆ Creado por <b style="color:var(--accent)">&nbsp;Musi Dklja&nbsp;</b> (28 de Agosto del 2025)
   <br>
-  <img src="https://hits.sh/musidklja.github.io/simuch-translator.svg?label=Visitas&color=9d4edd&labelColor=ff7b2d&extraCount=200&style=flat-square" alt="Visitas" style="margin-top:8px"/>
+  
+<div id="visits-pill" style="display:inline-flex;align-items:center;gap:0;border-radius:12px;overflow:hidden;margin-top:8px;border:1px solid var(--line)">
+  <span style="background:#ff7b2d;color:#111;padding:4px 10px;font-weight:800;letter-spacing:.2px">Visitas</span>
+  <span id="visits-count" style="background:#9d4edd;color:#fff;padding:4px 10px;font-weight:800;min-width:64px;text-align:center">—</span>
+</div>
+<script>
+(function(){
+  const BASELINE = 200;
+  const urlMobile = "https://hits.sh/musidklja.github.io/simuch-translator.svg";
+  const urlDesk   = "https://hits.sh/https://musidklja.github.io/simuch-translator.svg";
+  const $n = document.getElementById("visits-count");
+  function set(val){
+    try{ $n.textContent = Number(val).toLocaleString("es-CL"); }
+    catch(_){ $n.textContent = String(val); }
+  }
+  function parseSvgNumber(svgText){
+    const texts = Array.from(svgText.matchAll(/<text[^>]*>([^<]+)<\/text>/gi)).map(m=>m[1].trim());
+    for(let i=texts.length-1;i>=0;i--){
+      const t = texts[i].replace(/[,\.]/g,'').trim();
+      if(/^\d+$/.test(t)) return parseInt(t,10);
+    }
+    return null;
+  }
+  function fetchCount(url){
+    return fetch(url, {cache:"no-store", mode:"cors"})
+      .then(r=>r.ok ? r.text() : Promise.reject(r.status))
+      .then(txt=>{
+        const n = parseSvgNumber(txt);
+        if(typeof n === "number" && isFinite(n)) return n;
+        throw new Error("no-number");
+      });
+  }
+  fetchCount(urlDesk).catch(()=>fetchCount(urlMobile))
+    .then(n=> set(n + BASELINE))
+    .catch(()=> set(BASELINE));
+})();
+</script>
 </footer>
 
 <script>
