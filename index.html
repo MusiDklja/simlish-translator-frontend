@@ -1113,32 +1113,68 @@ init();
         SIM2ES = Object.assign({}, db.user?.SIM2ES||{}, db.core?.SIM2ES||{});
       }
       
+
+
 const doTranslate = () => {
   if(!$in || !$out) return;
-  const text = $in.value || "";
-  const srcNorm = (text||"").normalize("NFC").trim().toLowerCase();
+  const raw = $in.value || "";
+  const srcNorm = (raw||"").normalize("NFC").trim().toLowerCase();
   if(!srcNorm){ $out.value = ""; return; }
 
-  // Tokenize
-  const tokens = srcNorm.split(/(\s+|[,.!?;:()\"\-—–])/g).filter(t=>t && !/^\s+$/.test(t));
-  // Quick scoring: count token hits in each dictionary
-  let scoreES = 0, scoreSIM = 0;
-  for(const t of tokens){
-    if(ES2SIM[t]) scoreES++;
-    if(SIM2ES[t]) scoreSIM++;
+  // Tokenize words only
+  const words = srcNorm.split(/[\s,.;:!?()\"«»“”‘’\-—–]+/g).filter(Boolean);
+
+  // Score dictionary hits
+  let esHits = 0, simHits = 0;
+  for(const w of words){
+    if(ES2SIM[w]) esHits++;
+    if(SIM2ES[w]) simHits++;
+  }
+  const total = Math.max(1, words.length);
+  const esRatio = esHits / total;
+  const simRatio = simHits / total;
+
+  // Confidence thresholds
+  const MIN_HITS = 2;
+  const THRESH   = 0.25; // 25% de tokens
+
+  // Guess input language
+  let guess = null; // "ES" | "SIM"
+  if (simHits >= MIN_HITS && simRatio >= THRESH && simHits > esHits) guess = "SIM";
+  else if (esHits >= MIN_HITS && esRatio >= THRESH && esHits > simHits) guess = "ES";
+
+  // UI selected direction
+  const pillText = ($dir && $dir.textContent) || "";
+  const uiDir = pillText.includes("ES → SIM") || pillText.includes("ES->SIM") ? "ES2SIM" : "SIM2ES";
+
+  // Decide final direction
+  let chosenDir = uiDir;
+
+  // If input already looks like the TARGET language, FLIP and translate once
+  // target of ES2SIM is SIM; target of SIM2ES is ES
+  const targetLooksSIM = (uiDir === "ES2SIM" && guess === "SIM");
+  const targetLooksES  = (uiDir === "SIM2ES" && guess === "ES");
+  if (targetLooksSIM) {
+    chosenDir = "SIM2ES";
+    if ($dir) $dir.textContent = "SIM → ES";
+  } else if (targetLooksES) {
+    chosenDir = "ES2SIM";
+    if ($dir) $dir.textContent = "ES → SIM";
+  } else {
+    // If guess contradicts UI, flip once to the guessed direction
+    if (guess === "SIM" && uiDir === "ES2SIM") {
+      chosenDir = "SIM2ES";
+      if ($dir) $dir.textContent = "SIM → ES";
+    } else if (guess === "ES" && uiDir === "SIM2ES") {
+      chosenDir = "ES2SIM";
+      if ($dir) $dir.textContent = "ES → SIM";
+    }
   }
 
-  // Heuristics
-  let chosenDir = null;
-  if(scoreSIM > scoreES) chosenDir = "SIM2ES";
-  else if(scoreES > scoreSIM) chosenDir = "ES2SIM";
-  else chosenDir = currentDir();
-
   const map = chosenDir === "ES2SIM" ? ES2SIM : SIM2ES;
-  $out.value = translateText(text, map);
+  $out.value = translateText(raw, map);
 };
-
-      };
+};
       if($btn) $btn.addEventListener("click", doTranslate);
       if($in)  $in.addEventListener("input", doTranslate);
       doTranslate();
