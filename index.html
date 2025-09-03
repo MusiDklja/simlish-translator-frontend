@@ -7,7 +7,7 @@
 <meta name="description" content="Traductor bidireccional Español ⇄ Simuch con aprendizaje y sincronización estricta a backend.">
 <!-- CSP: solo self y tu backend en Render -->
 <meta http-equiv="Content-Security-Policy"
-  content="default-src ; connect-src 'self' https://simlish-translator-backend.onrender.com https://api.countapi.xyz;'self';
+  content="default-src ; connect-src 'self' https://simlish-translator-backend.onrender.com https://api.countapi.xyz https://simlish-translator-backend.onrender.com;'self';
            connect-src 'self' https://simlish-translator-backend.onrender.com;
            img-src 'self' https: data:;
            script-src 'self' 'unsafe-inline';
@@ -315,6 +315,7 @@ body, .wrap, .section, .footer, .header { color: var(--ink) !important; }
   ☆ Creado por <b style="color:var(--accent)">&nbsp;Musi Dklja&nbsp;</b> (28 de Agosto del 2025)
   <br>
   <img src="https://hits.sh/musidklja.github.io/simuch-translator.svg?label=Visitas&color=9d4edd&labelColor=ff7b2d&extraCount=200&style=flat-square" alt="Visitas" style="margin-top:8px"/>
+<div id="syncStatus" style="font-size:12px;color:#666;margin-top:6px;">sync: —</div>
 </footer>
 
 <script>
@@ -886,9 +887,28 @@ function updateHostIndicators(){
 }
 function endpoint(){ return BACKEND_URL; }
 function schedulePushToHost(){ clearTimeout(pushTimer); pushTimer=setTimeout(pushToHost, 600); }
+
 async function pushToHost(){
+  if(!dirtySinceLastPush && !dirty) { return; }
   try{
-    const payload={ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY };
+    setSyncStatus('pushing…');
+    let resp = await fetch(BACKEND, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ user, history })
+    });
+    if(!resp.ok){
+      // Fallback try (may avoid some CORS preflights if server accepts it)
+      resp = await fetch(BACKEND, { method: "POST", headers: {"Content-Type":"text/plain"}, body: JSON.stringify({ user, history }) });
+    }
+    if(!resp.ok) throw new Error('push failed ' + resp.status);
+    lastPushOk = true; dirtySinceLastPush = false; dirty = false; schedulePullAfterPush(true); setSyncStatus('push ok');
+  }catch(err){
+    lastPushOk = false; setSyncStatus('push failed'); /* no pull on failure */
+    console.log('push error', err);
+  }
+}
+;
     const r=await fetch(endpoint(),{ method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload), mode:"cors", credentials:"omit" });
     if(!r.ok) throw new Error(r.status);
     lastPushOk=true; dirtySinceLastPush=false;
@@ -921,7 +941,7 @@ function rebuildBidirectional(u){
 
 async function pullFromHost(){
   if(pulling) return; pulling=true;
-  try{
+  try{ setSyncStatus('pulling…');
     const r=await fetch(endpoint(),{method:"GET",mode:"cors",credentials:"omit",cache:"no-store"});
     if(!r.ok) throw new Error(r.status);
     const data=await r.json();
@@ -1160,6 +1180,9 @@ function schedulePullAfterPush(ok){
 }
 
 setInterval(pullFromHost,30000);
+
+function setSyncStatus(msg){ try{ const el=document.getElementById('syncStatus'); if(el){ el.textContent = 'sync: ' + msg; } }catch(e){} }
+
 </script>
 
 <!-- Contador de visitas en footer -->
