@@ -7,13 +7,7 @@
 <meta name="description" content="Traductor bidireccional Español ⇄ Simuch con aprendizaje y sincronización estricta a backend.">
 <!-- CSP: solo self y tu backend en Render -->
 <meta http-equiv="Content-Security-Policy"
-  content="default-src ; connect-src 'self' https://simlish-translator-backend.onrender.com https://api.countapi.xyz https://simlish-translator-backend.onrender.com;'self';
-           connect-src 'self' https://simlish-translator-backend.onrender.com;
-           img-src 'self' https: data:;
-           script-src 'self' 'unsafe-inline';
-           style-src  'self' 'unsafe-inline';
-           base-uri 'self';
-           frame-ancestors 'self'">
+  content="default-src 'self'; connect-src 'self' https://simlish-translator-backend.onrender.com https://api.countapi.xyz data: blob:; img-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' https: data:; base-uri 'self'; frame-ancestors 'self'">
 <style>
   :root{ --bg:#06141a; --bg2:#071e24; --ink:#e6f7f4; --muted:#93c5c9; --line:#0f2e35; --accent:#22d3a6; --accent-strong:#10b981; --accent-warn:#eab308; --tiktok:#38bdf8; }
   *{box-sizing:border-box}
@@ -892,14 +886,14 @@ async function pushToHost(){
   if(!dirtySinceLastPush && !dirty) { return; }
   try{
     setSyncStatus('pushing…');
-    let resp = await fetch(BACKEND, {
+    let resp = await fetch(endpoint(), {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ user, history })
     });
     if(!resp.ok){
       // Fallback try (may avoid some CORS preflights if server accepts it)
-      resp = await fetch(BACKEND, { method: "POST", headers: {"Content-Type":"text/plain"}, body: JSON.stringify({ user, history }) });
+      resp = await fetch(endpoint(), { method: "POST", headers: {"Content-Type":"text/plain"}, body: JSON.stringify({ user, history }) });
     }
     if(!resp.ok) throw new Error('push failed ' + resp.status);
     lastPushOk = true; dirtySinceLastPush = false; dirty = false; schedulePullAfterPush(true); setSyncStatus('push ok');
