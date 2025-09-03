@@ -1,2 +1,2 @@
-# simlish-translator-frontend
-Simlish Translator Online
+# simuch-translator
+Simuch Translator Online
