@@ -725,7 +725,7 @@ function refreshMeta(){
 }
 
 /* ===================== BOTONES BÁSICOS ===================== */
-$btn.addEventListener("click", doTranslate);
+$btn.addEventListener("click", ()=>{ doTranslate(); schedulePullAfterPush(true); });
 $clear.addEventListener("click", ()=>{ $in.value=""; $out.textContent="--"; lastLearnedCount=0; refreshMeta(); });
 $copy.addEventListener("click", async ()=>{ const txt=$out.textContent.trim(); if(!txt||txt==="--"){ alert("No hay texto para copiar."); return; } try{ await navigator.clipboard.writeText(txt); $copy.textContent="¡Copiado!"; setTimeout(()=>{$copy.textContent="Copiar";},900); }
 catch{ const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); $copy.textContent="¡Copiado!"; } finally{ document.body.removeChild(ta); setTimeout(()=>{$copy.textContent="Copiar";},900); } } });
@@ -1325,7 +1325,7 @@ const doTranslate = () => {
   $out.value = translateText(raw, map);
 };
 };
-      if($btn) $btn.addEventListener("click", doTranslate);
+      if($btn) $btn.addEventListener("click", ()=>{ doTranslate(); schedulePullAfterPush(true); });
       if($in)  $in.addEventListener("input", doTranslate);
       doTranslate();
       const $import = document.querySelector("[data-action='import-json']") || document.querySelector("#btnImportar");
