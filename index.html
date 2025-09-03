@@ -1819,7 +1819,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.__LAST_PUSH__ = window.__LAST_PUSH__ || 0;
     window.schedulePushToHost = function(){
       const now = Date.now();
-      if (now - window.__LAST_PUSH__ < 10000) return; // 10s
+      if (now - window.__LAST_PUSH__ < 60000) return; // 10s
       window.__LAST_PUSH__ = now;
       return orig.apply(this, arguments);
     };
