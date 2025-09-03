@@ -123,45 +123,39 @@
 </style>
 
 
-<style id="win95-dither-style">
+<style id="win95-pastel-style">
 :root{
-  --bevel-light: #41236f;
-  --bevel-dark: #120a24;
-  --ink: #efe9ff;
+  --bg: #2a1b4f;        /* fondo más pastel */
+  --panel: #3a2570;     /* panel más claro */
+  --ink: #f3ecff;       /* texto lavanda */
+  --accent: #ffb347;    /* naranja suave */
+  --accent-dk: #e39b36; /* hover */
+  --bevel-light: #5a3e98;
+  --bevel-dark: #1a0f34;
 }
-/* Kill expensive effects */
-* { filter:none !important; backdrop-filter:none !important; text-shadow:none !important;
-    transition:none !important; animation:none !important; }
+/* eliminar efectos caros */
+*{filter:none !important; backdrop-filter:none !important; text-shadow:none !important;
+  transition:none !important; animation:none !important; box-shadow:none !important;}
 
-/* Page background with dither */
-body {
-  color: var(--ink);
-  background-color: #1b1030;
-  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR42mOUFjDgZhNj4mYT+/rrFQAMIgOG10jkggAAAABJRU5ErkJggg==);
-  background-repeat: repeat;
-  background-size: auto;
-}
+/* fondo sólido */
+html,body{background: var(--bg) !important;}
 
-/* Generic panels/cards/containers */
+/* contenedores planos con bisel Win95 */
 .card, .panel, .box, .wrap, .section, .toolbar, .footer, .header, .container {
-  background-color: #2b1852 !important;
-  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR42mPUlgj6+fsz08/fn9lZeQEv2QaA6bq7eAAAAABJRU5ErkJggg==) !important;
-  background-repeat: repeat !important;
+  background: var(--panel) !important;
+  color: var(--ink) !important;
   border: 1px solid var(--bevel-dark) !important;
   border-left-color: var(--bevel-light) !important;
   border-top-color: var(--bevel-light) !important;
   border-right-color: var(--bevel-dark) !important;
   border-bottom-color: var(--bevel-dark) !important;
   border-radius: 0 !important;
-  box-shadow: none !important;
 }
 
-/* Inputs/textarea: flat, dithered */
+/* inputs / textarea */
 input, textarea, select {
-  color: var(--ink);
-  background-color: #0f0a1d !important;
-  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR42mPk55LlZhFj4mYR+/rnFQAKVQNftHwAwgAAAABJRU5ErkJggg==) !important;
-  background-repeat: repeat !important;
+  background: #241645 !important;
+  color: var(--ink) !important;
   border: 1px solid var(--bevel-dark) !important;
   border-left-color: var(--bevel-light) !important;
   border-top-color: var(--bevel-light) !important;
@@ -169,26 +163,32 @@ input, textarea, select {
   border-bottom-color: var(--bevel-dark) !important;
   border-radius: 0 !important;
 }
-input:focus, textarea:focus, select:focus { outline: 2px solid #a78bfa; outline-offset: 0; }
+input:focus, textarea:focus, select:focus { outline: 2px solid #bca7ff; outline-offset: 0; }
 
-/* Buttons: orange dithered */
+/* botones */
 button, .btn, .pill, .badge {
   color: #2a1600 !important;
-  background-color: #ff9c2b !important;
-  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAF0lEQVR42mP8P0f7yeuvTE9ef5UR5QYAPWUHjtPl/rkAAAAASUVORK5CYII=) !important;
-  background-repeat: repeat !important;
+  background: var(--accent) !important;
   border: 1px solid var(--bevel-dark) !important;
   border-left-color: var(--bevel-light) !important;
   border-top-color: var(--bevel-light) !important;
   border-right-color: var(--bevel-dark) !important;
   border-bottom-color: var(--bevel-dark) !important;
   border-radius: 0 !important;
-  box-shadow: none !important;
 }
+button:hover, .btn:hover { background: var(--accent-dk) !important; }
 button:active, .btn:active { transform: translateY(1px); }
 
-/* Remove radius on everything for Win95 look */
-* { border-radius: 0 !important; }
+/* texto general */
+body, .wrap, .section, .footer, .header { color: var(--ink) !important; }
+
+/* eliminar gradientes/fondos previos */
+*{ background-image: none !important; }
+</style>
+
+
+<style id="kill-led-style">
+.auto-led, .led, .dot { display:none !important; width:0 !important; height:0 !important; }
 </style>
 
 </head>
@@ -1723,6 +1723,16 @@ const doTranslate = () => {
 
 
 <script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Neutralize any helper
+  window.ensureLED = () => null;
+  window.setLED = () => {};
+  document.querySelectorAll('.auto-led,.led,.dot').forEach(n=>n.remove());
+});
+</script>
+
+
+<script>
 (function(){
   const $export = document.getElementById('exportBtn');
   if(!$export) return;
@@ -1732,7 +1742,7 @@ const doTranslate = () => {
       const db = window.db || { user:{} };
       const payload = { user: { ES2SIM: db.user?.ES2SIM || {}, SIM2ES: db.user?.SIM2ES || {} } };
       const data = JSON.stringify(payload, null, 2);
-      const blob = new Blob([data], {type: "application/json"});
+      const blob = new Blob([data], {type:'application/json'});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'simuch-user.json';
@@ -1748,10 +1758,79 @@ const doTranslate = () => {
 
 <script>
 (function(){
-  const $in = document.getElementById('in');
-  const $out = document.getElementById('out');
-  if(!window.doTranslate || !$in || !$out) return;
+  // Avoid double boot
+  if (window.__BOOTED__) return;
+  window.__BOOTED__ = true;
 
+  const $in = document.getElementById('in');
+  // Pause pulls while typing
+  function markTyping(){
+    window.__TYPING__ = true;
+    clearTimeout(window.__TYPING_T__);
+    window.__TYPING_T__ = setTimeout(()=> window.__TYPING__ = false, 800);
+  }
+  if($in){ $in.addEventListener('input', markTyping, {passive:true}); }
+
+  // Single auto-pull interval
+  if (typeof window.startAutoPull === 'function'){
+    const orig = window.startAutoPull;
+    window.startAutoPull = function(){
+      const res = orig.apply(this, arguments);
+      clearInterval(window.autoPullTimer);
+      window.autoPullTimer = setInterval(()=>{
+        if(!window.__TYPING__ && typeof window.pullFromHost === 'function') window.pullFromHost();
+      }, 25000);
+      return res;
+    };
+  }
+
+  // Wire listeners only once
+  if (!window.__LISTENERS_WIRED__){
+    window.__LISTENERS_WIRED__ = true;
+    document.addEventListener('visibilitychange', ()=>{
+      if (document.visibilityState === 'visible' && !window.__TYPING__ && typeof window.pullFromHost==='function'){
+        setTimeout(()=>window.pullFromHost(), 400);
+      }
+    }, {passive:true});
+    window.addEventListener('focus', ()=>{
+      if(!window.__TYPING__ && typeof window.pullFromHost==='function'){
+        setTimeout(()=>window.pullFromHost(), 400);
+      }
+    }, {passive:true});
+  }
+
+  // History cap
+  if (typeof window.appendHistory === 'function'){
+    const orig = window.appendHistory;
+    window.appendHistory = function(item){
+      const r = orig.apply(this, arguments);
+      try{
+        if (Array.isArray(window.HISTORY) && window.HISTORY.length > 50){
+          window.HISTORY.splice(0, window.HISTORY.length - 50);
+        }
+      }catch(_){}
+      return r;
+    };
+  }
+
+  // Push cooldown (>= 10s)
+  if (typeof window.schedulePushToHost === 'function'){
+    const orig = window.schedulePushToHost;
+    window.__LAST_PUSH__ = window.__LAST_PUSH__ || 0;
+    window.schedulePushToHost = function(){
+      const now = Date.now();
+      if (now - window.__LAST_PUSH__ < 10000) return; // 10s
+      window.__LAST_PUSH__ = now;
+      return orig.apply(this, arguments);
+    };
+  }
+})();
+</script>
+
+
+<script>
+(function(){
+  const $in = document.getElementById('in');
   function containsSimWord(text){
     try{
       const toks = (text.match(/[\wáéíóúñü]+/gi)||[]).map(t => (typeof normSim==='function'? normSim(t): String(t).toLowerCase()));
@@ -1759,30 +1838,22 @@ const doTranslate = () => {
       return toks.some(isSim);
     }catch(_){ return false; }
   }
-
-  const wrapSkip = (name)=>{
+  function shouldSkipSave(){
+    try{
+      if(!$in) return false;
+      const raw = ($in.value||'').trim();
+      return (typeof CURRENT_DIR!=='undefined' && typeof DIR!=='undefined' && CURRENT_DIR===DIR.ES2SIM) && containsSimWord(raw);
+    }catch(_){ return false; }
+  }
+  const wrap = (name)=>{
     const orig = window[name];
     if (typeof orig !== 'function') return;
     window[name] = function(...args){
-      if (window.__SKIP_SAVE_FROM_SIM_IN_ES) return; // block side effects
+      if (shouldSkipSave()) return;
       return orig.apply(this, args);
     };
   };
-  ['applyLearning','saveUser','appendHistory','schedulePushToHost'].forEach(wrapSkip);
-
-  const _orig_doTranslate = window.doTranslate;
-  window.doTranslate = function(){
-    try{
-      const inputRaw = ($in && $in.value || '').trim();
-      if (typeof CURRENT_DIR!=='undefined' && typeof DIR!=='undefined' && CURRENT_DIR===DIR.ES2SIM){
-        window.__SKIP_SAVE_FROM_SIM_IN_ES = containsSimWord(inputRaw);
-      } else {
-        window.__SKIP_SAVE_FROM_SIM_IN_ES = false;
-      }
-    }catch(_){ window.__SKIP_SAVE_FROM_SIM_IN_ES = false; }
-    try{ return _orig_doTranslate(); }
-    finally { window.__SKIP_SAVE_FROM_SIM_IN_ES = false; }
-  };
+  ['applyLearning','saveUser','appendHistory','schedulePushToHost'].forEach(wrap);
 })();
 </script>
 
