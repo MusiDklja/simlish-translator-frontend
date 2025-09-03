@@ -1819,7 +1819,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.__LAST_PUSH__ = window.__LAST_PUSH__ || 0;
     window.schedulePushToHost = function(){
       const now = Date.now();
-      if (now - window.__LAST_PUSH__ < 30000) return; // 10s
+      if (now - window.__LAST_PUSH__ < 15000) return; // 10s
       window.__LAST_PUSH__ = now;
       return orig.apply(this, arguments);
     };
@@ -1854,22 +1854,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   };
   ['applyLearning','saveUser','appendHistory','schedulePushToHost'].forEach(wrap);
-})();
-</script>
-
-
-<script>
-(function(){
-  if (typeof window.appendHistory === 'function'){
-    const _orig_appendHistory = window.appendHistory;
-    window.appendHistory = function(item){
-      const r = _orig_appendHistory.apply(this, arguments);
-      try {
-        if (typeof window.paintHistory === 'function') window.paintHistory();
-      } catch(_) {}
-      return r;
-    };
-  }
 })();
 </script>
 
