@@ -879,7 +879,7 @@ function startAutoPull(){
   autoPullTimer = setInterval(()=>{ pullFromHost(); }, 15000); // cada 15 s
 }
 function flushViaBeacon(){ if(!dirtySinceLastPush) return;
-  try{ const payload = JSON.stringify({ user: USER });
+  try{ const payload=JSON.stringify({ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY, flush:true });
     const blob=new Blob([payload],{type:"application/json"}); navigator.sendBeacon(endpoint(), blob); lastPushOk=true; dirtySinceLastPush=false;
   }catch(_){}
 }
@@ -1439,7 +1439,8 @@ const doTranslate = () => {
             }
             // If no handler, export minimal user maps from current db
             const db = window.db || {user:{}};
-            const out = { es2sim: (db.user && db.user.ES2SIM) || {}, sim2es: (db.user && db.user.SIM2ES) || {} },
+            const out = {
+              es2sim: (db.user && db.user.ES2SIM) || {},
               sim2es: (db.user && db.user.SIM2ES) || {}
             };
             saveBlob(out, `simuch-user_${stamp()}.json`);
@@ -1655,56 +1656,89 @@ const doTranslate = () => {
 <script>
 (function(){
   const $ = s=>document.querySelector(s);
-  const debounce=(fn,ms=220)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
+  const $$ = s=>document.querySelectorAll(s);
+  const $in = document.getElementById('in');
+  const $out = document.getElementById('out');
+  const $btn = document.getElementById('translate');
+  const $export = document.getElementById('exportBtn');
 
-  // Pause autoPull while typing
-  let typing = false; let typingTimer = null;
-  function markTyping(){
-    typing = true;
-    clearTimeout(typingTimer);
-    typingTimer = setTimeout(()=>{ typing=false; }, 600);
+  // ---- A) Bloquear traducción en vivo por input (stopImmediatePropagation) ----
+  if ($in) {
+    $in.addEventListener('input', function(e){ e.stopImmediatePropagation(); }, true);
   }
 
-  // Hook inputs for preview-only
-  const $es = document.getElementById('es');
-  const $sim = document.getElementById('sim');
-  const previewES = debounce(()=>{ if(window.translateText){ $('#out').textContent = window.translateText($es.value, 'ES2SIM', {learn:false}); } }, 220);
-  const previewSIM = debounce(()=>{ if(window.translateText){ $('#out').textContent = window.translateText($sim.value, 'SIM2ES', {learn:false}); } }, 220);
+  // ---- B) Guard ES->SIM: si detecta una palabra Simuch, no traduce y muestra mensaje ----
+  const ERR_MSG = "Te equivocaste jijí, eso no es español.\\nReruba kuvohnu! gibmo zimkusunu!";
 
-  if($es){ $es.addEventListener('input', ()=>{ markTyping(); previewES(); }); }
-  if($sim){ $sim.addEventListener('input', ()=>{ markTyping(); previewSIM(); }); }
-
-  // Make sure main translate buttons do learn (explicit action)
-  const $btnES2SIM = document.getElementById('btnES2SIM');
-  const $btnSIM2ES = document.getElementById('btnSIM2ES');
-  function hardTranslate(dir){
-    const src = dir==='ES2SIM' ? ($es?$es.value:'') : ($sim?$sim.value:'');
-    if(window.translateText){ $('#out').textContent = window.translateText(src, dir, {learn:true}); }
-  }
-  if($btnES2SIM){ $btnES2SIM.addEventListener('click', ()=>hardTranslate('ES2SIM')); }
-  if($btnSIM2ES){ $btnSIM2ES.addEventListener('click', ()=>hardTranslate('SIM2ES')); }
-
-  // Slow down auto-pull and skip while typing
-  if(window.startAutoPull){
-    const orig = window.startAutoPull;
-    window.startAutoPull = function(){
-      orig();
-      // Replace interval with slower one
-      if(window.autoPullTimer){ clearInterval(window.autoPullTimer); }
-      window.autoPullTimer = setInterval(()=>{ if(!typing && window.pullFromHost) window.pullFromHost(); }, 25000);
-    };
+  function hasAnySimWord(text){
+    if(!text) return false;
+    try{
+      const tokens = (text.match(/[\\wáéíóúñü]+/gi) || []).map(t=> (typeof normSim==="function"? normSim(t): String(t||'').toLowerCase()));
+      // Prefer merged SIM2ES (usuario + core), sino CORE_SIM2ES
+      const simObj = (window.SIM2ES && typeof window.SIM2ES==='object') ? window.SIM2ES : null;
+      const simCoreHas = (typeof CORE_SIM2ES!=="undefined" && CORE_SIM2ES && typeof CORE_SIM2ES.has==='function') ? (k)=>CORE_SIM2ES.has(k) : ()=>false;
+      for (const tk of tokens){
+        if (!tk) continue;
+        if (simObj && Object.prototype.hasOwnProperty.call(simObj, tk)) return true;
+        if (simCoreHas(tk)) return true;
+      }
+    }catch(_){}
+    return false;
   }
 
-  // Slow down push to host
-  if(window.schedulePushToHost){
-    const origPush = window.schedulePushToHost;
-    let last = 0;
-    window.schedulePushToHost = function(){
-      const now = Date.now();
-      if(now - last < 5000) return; // min 5s between pushes
-      last = now;
-      return origPush();
-    };
+  // Wrap doTranslate
+  try{
+    window._doTranslate_orig = window._doTranslate_orig || window.doTranslate;
+  }catch(_){}
+
+  window.doTranslate = function(){
+    try{
+      // Detect dir via CURRENT_DIR if available, else by UI label
+      let dirIsES2SIM = false;
+      if (typeof CURRENT_DIR !== "undefined" && typeof DIR !== "undefined"){
+        dirIsES2SIM = (CURRENT_DIR === DIR.ES2SIM);
+      } else {
+        const lab = (document.getElementById("dirLabel")||{}).textContent || "";
+        dirIsES2SIM = /ES\s*→\s*SIM/i.test(lab);
+      }
+      const inputRaw = ($in && $in.value || "").trim();
+      if (dirIsES2SIM && hasAnySimWord(inputRaw)){
+        if ($out) $out.textContent = ERR_MSG;
+        return; // no aprender, no guardar
+      }
+    }catch(_){}
+    // fallback to original behavior
+    if (typeof window._doTranslate_orig === "function") return window._doTranslate_orig();
+  };
+
+  // Ensure the button triggers our wrapper
+  if($btn){
+    $btn.addEventListener('click', function(ev){
+      ev.preventDefault();
+      window.doTranslate();
+    });
+  }
+
+  // ---- C) Export SOLO USER ----
+  if ($export){
+    $export.addEventListener('click', function(ev){
+      ev.preventDefault();
+      try{
+        const db = window.db || { user: {} };
+        const payload = { user: { ES2SIM: db.user?.ES2SIM || {}, SIM2ES: db.user?.SIM2ES || {} } };
+        const data = JSON.stringify(payload, null, 2);
+        const blob = new Blob([data], {type:"application/json"});
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "simuch-user.json";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
+        a.remove();
+      }catch(e){
+        alert("No se pudo exportar el usuario: " + (e.message||e));
+      }
+    }, {once:false});
   }
 })();
 </script>
