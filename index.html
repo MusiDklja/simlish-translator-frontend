@@ -123,30 +123,72 @@
 </style>
 
 
-<style id="win95-fixed-style">
-* { text-rendering: optimizeSpeed; }
-body { background: linear-gradient(135deg,#3a0ca3,#7209b7,#f48c06,#ffba08); }
-* { filter:none !important; backdrop-filter:none !important; text-shadow:none !important; }
+<style id="win95-dither-style">
+:root{
+  --bevel-light: #41236f;
+  --bevel-dark: #120a24;
+  --ink: #efe9ff;
+}
+/* Kill expensive effects */
+* { filter:none !important; backdrop-filter:none !important; text-shadow:none !important;
+    transition:none !important; animation:none !important; }
+
+/* Page background with dither */
+body {
+  color: var(--ink);
+  background-color: #1b1030;
+  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR42mOUFjDgZhNj4mYT+/rrFQAMIgOG10jkggAAAABJRU5ErkJggg==);
+  background-repeat: repeat;
+  background-size: auto;
+}
+
+/* Generic panels/cards/containers */
 .card, .panel, .box, .wrap, .section, .toolbar, .footer, .header, .container {
-  background: rgba(0,0,0,0.18) !important;
-  border: 2px solid #2a184d !important;
-  border-right-color: #120a24 !important;
-  border-bottom-color: #120a24 !important;
-  border-left-color: #3b236e !important;
-  border-top-color: #3b236e !important;
+  background-color: #2b1852 !important;
+  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR42mPUlgj6+fsz08/fn9lZeQEv2QaA6bq7eAAAAABJRU5ErkJggg==) !important;
+  background-repeat: repeat !important;
+  border: 1px solid var(--bevel-dark) !important;
+  border-left-color: var(--bevel-light) !important;
+  border-top-color: var(--bevel-light) !important;
+  border-right-color: var(--bevel-dark) !important;
+  border-bottom-color: var(--bevel-dark) !important;
+  border-radius: 0 !important;
   box-shadow: none !important;
-  border-radius: 6px !important;
 }
-button, .btn, .pill, .badge, input, textarea, select {
+
+/* Inputs/textarea: flat, dithered */
+input, textarea, select {
+  color: var(--ink);
+  background-color: #0f0a1d !important;
+  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR42mPk55LlZhFj4mYR+/rnFQAKVQNftHwAwgAAAABJRU5ErkJggg==) !important;
+  background-repeat: repeat !important;
+  border: 1px solid var(--bevel-dark) !important;
+  border-left-color: var(--bevel-light) !important;
+  border-top-color: var(--bevel-light) !important;
+  border-right-color: var(--bevel-dark) !important;
+  border-bottom-color: var(--bevel-dark) !important;
+  border-radius: 0 !important;
+}
+input:focus, textarea:focus, select:focus { outline: 2px solid #a78bfa; outline-offset: 0; }
+
+/* Buttons: orange dithered */
+button, .btn, .pill, .badge {
+  color: #2a1600 !important;
+  background-color: #ff9c2b !important;
+  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAF0lEQVR42mP8P0f7yeuvTE9ef5UR5QYAPWUHjtPl/rkAAAAASUVORK5CYII=) !important;
+  background-repeat: repeat !important;
+  border: 1px solid var(--bevel-dark) !important;
+  border-left-color: var(--bevel-light) !important;
+  border-top-color: var(--bevel-light) !important;
+  border-right-color: var(--bevel-dark) !important;
+  border-bottom-color: var(--bevel-dark) !important;
+  border-radius: 0 !important;
   box-shadow: none !important;
-  border-radius: 6px !important;
-  border: 2px solid #3b236e !important;
-  background-image: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.12)) !important;
 }
-textarea, input, select { background-color: rgba(0,0,0,0.28) !important; }
-:focus { outline: 2px solid #a78bfa !important; outline-offset: 1px; }
-* { transition: none !important; animation: none !important; }
 button:active, .btn:active { transform: translateY(1px); }
+
+/* Remove radius on everything for Win95 look */
+* { border-radius: 0 !important; }
 </style>
 
 </head>
@@ -1690,7 +1732,7 @@ const doTranslate = () => {
       const db = window.db || { user:{} };
       const payload = { user: { ES2SIM: db.user?.ES2SIM || {}, SIM2ES: db.user?.SIM2ES || {} } };
       const data = JSON.stringify(payload, null, 2);
-      const blob = new Blob([data], {type:"application/json"});
+      const blob = new Blob([data], {type: "application/json"});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'simuch-user.json';
@@ -1698,7 +1740,7 @@ const doTranslate = () => {
       a.click();
       setTimeout(()=>URL.revokeObjectURL(a.href), 1200);
       a.remove();
-    }catch(e){ alert('No se pudo exportar: '+(e.message||e)); }
+    }catch(e){ alert('No se pudo exportar: ' + (e.message||e)); }
   }, {once:false});
 })();
 </script>
@@ -1709,6 +1751,7 @@ const doTranslate = () => {
   const $in = document.getElementById('in');
   const $out = document.getElementById('out');
   if(!window.doTranslate || !$in || !$out) return;
+
   function containsSimWord(text){
     try{
       const toks = (text.match(/[\wáéíóúñü]+/gi)||[]).map(t => (typeof normSim==='function'? normSim(t): String(t).toLowerCase()));
@@ -1716,22 +1759,26 @@ const doTranslate = () => {
       return toks.some(isSim);
     }catch(_){ return false; }
   }
-  const wrap = (name)=>{
+
+  const wrapSkip = (name)=>{
     const orig = window[name];
     if (typeof orig !== 'function') return;
     window[name] = function(...args){
-      if (window.__SKIP_SAVE_FROM_SIM_IN_ES) return;
+      if (window.__SKIP_SAVE_FROM_SIM_IN_ES) return; // block side effects
       return orig.apply(this, args);
     };
   };
-  ['applyLearning','saveUser','appendHistory','schedulePushToHost'].forEach(wrap);
+  ['applyLearning','saveUser','appendHistory','schedulePushToHost'].forEach(wrapSkip);
+
   const _orig_doTranslate = window.doTranslate;
   window.doTranslate = function(){
     try{
       const inputRaw = ($in && $in.value || '').trim();
       if (typeof CURRENT_DIR!=='undefined' && typeof DIR!=='undefined' && CURRENT_DIR===DIR.ES2SIM){
         window.__SKIP_SAVE_FROM_SIM_IN_ES = containsSimWord(inputRaw);
-      } else { window.__SKIP_SAVE_FROM_SIM_IN_ES = false; }
+      } else {
+        window.__SKIP_SAVE_FROM_SIM_IN_ES = false;
+      }
     }catch(_){ window.__SKIP_SAVE_FROM_SIM_IN_ES = false; }
     try{ return _orig_doTranslate(); }
     finally { window.__SKIP_SAVE_FROM_SIM_IN_ES = false; }
