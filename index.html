@@ -94,6 +94,55 @@
 </style>
 
 
+<style>
+/* Auto-detect indicator LED */
+.auto-led {
+  display:inline-block;
+  width:12px; height:12px;
+  margin-left:8px;
+  border-radius:999px;
+  background: rgba(255,255,255,0.15);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+  vertical-align: middle;
+  transition: box-shadow .25s ease, background .25s ease, transform .25s ease, opacity .25s ease;
+  opacity:.6;
+}
+.auto-led.on-orange {
+  background: linear-gradient(135deg, #ffa63a, #ff7a00);
+  box-shadow: 0 0 10px 2px rgba(255,122,0,.55), 0 0 2px 1px rgba(255,255,255,.25) inset;
+  opacity:1;
+}
+.auto-led.on-purple {
+  background: linear-gradient(135deg, #7a2cff, #a33cff);
+  box-shadow: 0 0 10px 2px rgba(162,52,255,.55), 0 0 2px 1px rgba(255,255,255,.25) inset;
+  opacity:1;
+}
+.auto-led.pulse {
+  transform: scale(1.08);
+}
+</style>
+
+
+<style>
+body.no-heavy-effects *{
+  filter:none !important;
+  backdrop-filter:none !important;
+  box-shadow:none !important;
+  text-shadow:none !important;
+}
+body.no-heavy-effects{
+  background: linear-gradient(135deg,#3a0ca3,#7209b7,#f48c06,#ffba08) !important;
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important;transition:none !important;}
+}
+</style>
+<script>
+document.addEventListener("DOMContentLoaded",()=>{
+  document.body.classList.add("no-heavy-effects");
+});
+</script>
+
 </head>
 <body>
   <header>
@@ -114,7 +163,7 @@
         </div>
         <p class="muted small">Aprendizaje estricto: sincroniza y guarda automáticamente en el backend oficial.</p>
         <div class="toolbar">
-          <button id="exportBtn" class="btn sec" title="Exportar respaldo">Exportar respaldo (.json)</button>
+          <button id="exportBtn" class="btn sec" title="Exportar respaldo">Exportar usuario (.json)</button>
         </div>
         <div id="strictBanner" class="small muted" style="display:none"></div>
       </div>
@@ -495,20 +544,6 @@ function translateES2SIM(text){
   return { text: out, learnedFromGen };
 }
 
-
-// Guard: if input contains ANY Simuch token, block and show friendly message
-const _orig_translateES2SIM = translateES2SIM;
-function translateES2SIM(text){
-  try{
-    const tokens = (text.match(/[\wáéíóúñü]+/gi) || []).map(t=> normSim(t));
-    // Use core+phrasebook SIM keys
-    const hasSim = tokens.some(t => (CORE_SIM2ES && CORE_SIM2ES.has && CORE_SIM2ES.has(t)) || (PH_SIM2ES && PH_SIM2ES.has && PH_SIM2ES.has(t)));
-    if(hasSim){
-      return { text: "Te equivocaste jijí, eso no es español.\nReruba kuvohnu! gibmo zimkusunu!", learnedFromGen: 0 };
-    }
-  }catch(e){ /* ignore and fall back */ }
-  return _orig_translateES2SIM(text);
-}
 function translateSIM2ES(text){
   const sentences = text.match(/[^.!?]+[.!?]?/g) || [text];
   const out = sentences.map(raw=>{
@@ -1352,7 +1387,7 @@ const doTranslate = () => {
   setTimeout(()=>{
     // ---------- EXPORT ----------
     // Find existing export button by text (no IDs were guaranteed)
-    const exportBtn = byText("button", "Exportar respaldo") || byText("*", "Exportar respaldo (.json)");
+    const exportBtn = byText("button", "Exportar respaldo") || byText("*", "Exportar usuario (.json)");
     if (exportBtn && !exportBtn.dataset.coreDot) {
       // Create a small circular "dot" next to the export button
       const dot = document.createElement("button");
@@ -1604,7 +1639,20 @@ const doTranslate = () => {
   function findPill(){
     return $("#dir-pill,[data-dir]") || $$("button,.badge,.pill").find(el=>/ES\s*[→>-]\s*SIM|SIM\s*[→>-]\s*ES/i.test(el.textContent||""));
   }
-  function ensureLED(){ return null; }function setLED(){ }if(mode==="purple"){led.classList.add("on-purple","pulse");led.title="Autodetección: SIM → ES"}
+  function ensureLED(pill){
+    if(!pill) return null;
+    if(pill._autoLED) return pill._autoLED;
+    const led=document.createElement("span");
+    led.className="auto-led"; led.title="Autodetección";
+    pill.insertAdjacentElement("afterend",led);
+    pill._autoLED=led; return led;
+  }
+  function setLED(mode){
+    const pill=findPill(); const led=ensureLED(pill); if(!led) return;
+    led.classList.remove("on-orange","on-purple","pulse");
+    if(mode==="off") return;
+    if(mode==="orange"){led.classList.add("on-orange","pulse");led.title="Autodetección: ES → SIM"}
+    if(mode==="purple"){led.classList.add("on-purple","pulse");led.title="Autodetección: SIM → ES"}
     setTimeout(()=>led.classList.remove("pulse"),300);
   }
   function apply(dir){
@@ -1622,6 +1670,50 @@ const doTranslate = () => {
     run();
   }
   setTimeout(hook,150);
+})();
+</script>
+
+
+// === Guard Simlish Detection ===
+function containsSimWord(text){
+  const toks = (text.match(/[\wáéíóúñü]+/gi)||[]).map(t=>normSim(t));
+  const isSim = t => (CORE_SIM2ES?.has?.(t) || PH_SIM2ES?.has?.(t)) 
+                    && !(CORE_ES2SIM?.has?.(t) || PH_ES2SIM?.has?.(t));
+  return toks.some(isSim);
+}
+
+const _orig_doTranslate = doTranslate;
+doTranslate = function(){
+  const inputRaw = ($in && $in.value || "").trim();
+  if(CURRENT_DIR===DIR.ES2SIM && containsSimWord(inputRaw)){
+    $out.textContent = "Te equivocaste jijí, eso no es español.\\nReruba kuvohnu! gibmo zimkusunu!";
+    return;
+  }
+  return _orig_doTranslate();
+};
+
+
+<script>
+(function(){
+  const $export = document.getElementById('exportBtn');
+  if($export){
+    $export.addEventListener('click', function(ev){
+      ev.preventDefault();
+      try{
+        const db = window.db || { user:{} };
+        const payload = { user: { ES2SIM: db.user?.ES2SIM||{}, SIM2ES: db.user?.SIM2ES||{} } };
+        const data = JSON.stringify(payload,null,2);
+        const blob = new Blob([data],{type:"application/json"});
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "simuch-user.json";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+        a.remove();
+      }catch(e){ alert("Error exportando usuario: "+(e.message||e)); }
+    },{once:false});
+  }
 })();
 </script>
 
