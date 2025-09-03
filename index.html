@@ -123,25 +123,31 @@
 </style>
 
 
-<style>
-body.no-heavy-effects *{
-  filter:none !important;
-  backdrop-filter:none !important;
-  box-shadow:none !important;
-  text-shadow:none !important;
+<style id="win95-fixed-style">
+* { text-rendering: optimizeSpeed; }
+body { background: linear-gradient(135deg,#3a0ca3,#7209b7,#f48c06,#ffba08); }
+* { filter:none !important; backdrop-filter:none !important; text-shadow:none !important; }
+.card, .panel, .box, .wrap, .section, .toolbar, .footer, .header, .container {
+  background: rgba(0,0,0,0.18) !important;
+  border: 2px solid #2a184d !important;
+  border-right-color: #120a24 !important;
+  border-bottom-color: #120a24 !important;
+  border-left-color: #3b236e !important;
+  border-top-color: #3b236e !important;
+  box-shadow: none !important;
+  border-radius: 6px !important;
 }
-body.no-heavy-effects{
-  background: linear-gradient(135deg,#3a0ca3,#7209b7,#f48c06,#ffba08) !important;
+button, .btn, .pill, .badge, input, textarea, select {
+  box-shadow: none !important;
+  border-radius: 6px !important;
+  border: 2px solid #3b236e !important;
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.12)) !important;
 }
-@media (prefers-reduced-motion: reduce){
-  *{animation:none !important;transition:none !important;}
-}
+textarea, input, select { background-color: rgba(0,0,0,0.28) !important; }
+:focus { outline: 2px solid #a78bfa !important; outline-offset: 1px; }
+* { transition: none !important; animation: none !important; }
+button:active, .btn:active { transform: translateY(1px); }
 </style>
-<script>
-document.addEventListener("DOMContentLoaded",()=>{
-  document.body.classList.add("no-heavy-effects");
-});
-</script>
 
 </head>
 <body>
@@ -1674,46 +1680,62 @@ const doTranslate = () => {
 </script>
 
 
-// === Guard Simlish Detection ===
-function containsSimWord(text){
-  const toks = (text.match(/[\wáéíóúñü]+/gi)||[]).map(t=>normSim(t));
-  const isSim = t => (CORE_SIM2ES?.has?.(t) || PH_SIM2ES?.has?.(t)) 
-                    && !(CORE_ES2SIM?.has?.(t) || PH_ES2SIM?.has?.(t));
-  return toks.some(isSim);
-}
-
-const _orig_doTranslate = doTranslate;
-doTranslate = function(){
-  const inputRaw = ($in && $in.value || "").trim();
-  if(CURRENT_DIR===DIR.ES2SIM && containsSimWord(inputRaw)){
-    $out.textContent = "Te equivocaste jijí, eso no es español.\\nReruba kuvohnu! gibmo zimkusunu!";
-    return;
-  }
-  return _orig_doTranslate();
-};
+<script>
+(function(){
+  const $export = document.getElementById('exportBtn');
+  if(!$export) return;
+  $export.addEventListener('click', function(ev){
+    try{ ev.preventDefault(); }catch(_){}
+    try{
+      const db = window.db || { user:{} };
+      const payload = { user: { ES2SIM: db.user?.ES2SIM || {}, SIM2ES: db.user?.SIM2ES || {} } };
+      const data = JSON.stringify(payload, null, 2);
+      const blob = new Blob([data], {type:"application/json"});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'simuch-user.json';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 1200);
+      a.remove();
+    }catch(e){ alert('No se pudo exportar: '+(e.message||e)); }
+  }, {once:false});
+})();
+</script>
 
 
 <script>
 (function(){
-  const $export = document.getElementById('exportBtn');
-  if($export){
-    $export.addEventListener('click', function(ev){
-      ev.preventDefault();
-      try{
-        const db = window.db || { user:{} };
-        const payload = { user: { ES2SIM: db.user?.ES2SIM||{}, SIM2ES: db.user?.SIM2ES||{} } };
-        const data = JSON.stringify(payload,null,2);
-        const blob = new Blob([data],{type:"application/json"});
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "simuch-user.json";
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(()=>URL.revokeObjectURL(a.href),1500);
-        a.remove();
-      }catch(e){ alert("Error exportando usuario: "+(e.message||e)); }
-    },{once:false});
+  const $in = document.getElementById('in');
+  const $out = document.getElementById('out');
+  if(!window.doTranslate || !$in || !$out) return;
+  function containsSimWord(text){
+    try{
+      const toks = (text.match(/[\wáéíóúñü]+/gi)||[]).map(t => (typeof normSim==='function'? normSim(t): String(t).toLowerCase()));
+      const isSim = t => (window.CORE_SIM2ES?.has?.(t) || window.PH_SIM2ES?.has?.(t)) && !(window.CORE_ES2SIM?.has?.(t) || window.PH_ES2SIM?.has?.(t));
+      return toks.some(isSim);
+    }catch(_){ return false; }
   }
+  const wrap = (name)=>{
+    const orig = window[name];
+    if (typeof orig !== 'function') return;
+    window[name] = function(...args){
+      if (window.__SKIP_SAVE_FROM_SIM_IN_ES) return;
+      return orig.apply(this, args);
+    };
+  };
+  ['applyLearning','saveUser','appendHistory','schedulePushToHost'].forEach(wrap);
+  const _orig_doTranslate = window.doTranslate;
+  window.doTranslate = function(){
+    try{
+      const inputRaw = ($in && $in.value || '').trim();
+      if (typeof CURRENT_DIR!=='undefined' && typeof DIR!=='undefined' && CURRENT_DIR===DIR.ES2SIM){
+        window.__SKIP_SAVE_FROM_SIM_IN_ES = containsSimWord(inputRaw);
+      } else { window.__SKIP_SAVE_FROM_SIM_IN_ES = false; }
+    }catch(_){ window.__SKIP_SAVE_FROM_SIM_IN_ES = false; }
+    try{ return _orig_doTranslate(); }
+    finally { window.__SKIP_SAVE_FROM_SIM_IN_ES = false; }
+  };
 })();
 </script>
 
