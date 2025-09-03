@@ -238,7 +238,7 @@ body, .wrap, .section, .footer, .header { color: var(--ink) !important; }
 
     <section class="card">
       <details open>
-        <summary><strong>Historial (últimos 10 aprendidos)</strong></summary>
+        <summary><strong>Historial (últimos 50)</strong></summary>
         <div id="history" class="small muted" style="margin-top:8px">--</div>
       </details>
       <details style="margin-top:12px">
@@ -351,7 +351,7 @@ function defaultUserStore(){ return { es2sim:{}, sim2es:{} }; }
 function loadUser(){ try{ return JSON.parse(localStorage.getItem(KEY_USER)||"") || defaultUserStore(); } catch{ return defaultUserStore(); } }
 function saveUser(store){ try{ localStorage.setItem(KEY_USER, JSON.stringify(store)); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
 function loadHistory(){ try{ return JSON.parse(localStorage.getItem(KEY_HISTORY)||"[]"); }catch{ return []; } }
-function saveHistory(list){ try{ localStorage.setItem(KEY_HISTORY, JSON.stringify(list.slice(-10))); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
+function saveHistory(list){ try{ localStorage.setItem(KEY_HISTORY, JSON.stringify(list.slice(-50))); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
 function canLearn(){ return true; }
 
 let USER = loadUser();
@@ -552,7 +552,7 @@ function learnPairs(pairs){
     if(!USER.sim2es[kSim]){ USER.sim2es[kSim]=es; }
     stamped.push({es, sim, t:new Date().toISOString()});
   }
-  if(stamped.length){ HISTORY=[...HISTORY, ...stamped].slice(-10); saveHistory(HISTORY); }
+  if(stamped.length){ HISTORY=[...HISTORY, ...stamped].slice(-50); saveHistory(HISTORY); }
   if(learned>0) saveUser(USER);
   return learned;
 }
@@ -707,7 +707,7 @@ function refreshMeta(){
   if($stateLearnVal) $stateLearnVal.textContent = String(lastLearnedCount||0);
 
   if($history){
-    const hist = (Array.isArray(HISTORY)?HISTORY:[]).slice(-10);
+    const hist = (Array.isArray(HISTORY)?HISTORY:[]).slice(-50);
     if(!hist.length){ $history.textContent = "--"; }
     else{
       $history.innerHTML = hist.map(h => `• <b>${h.es}</b> ↔ <i>${h.sim}</i> <span class="muted">(${new Date(h.t||Date.now()).toLocaleString()})</span>`).join("<br>");
@@ -802,7 +802,7 @@ function renderResults(list){
       const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==simVal){ delete USER.sim2es[normSim(prevSim)]; }
       const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==esVal){ delete USER.es2sim[normEs(prevEs)]; }
       USER.es2sim[kEs]=simVal; USER.sim2es[kSim]=esVal;
-      HISTORY=[...HISTORY,{es:esVal,sim:simVal,t:new Date().toISOString()}].slice(-10);
+      HISTORY=[...HISTORY,{es:esVal,sim:simVal,t:new Date().toISOString()}].slice(-50);
       saveUser(USER); saveHistory(HISTORY); renderResults([{scope:"USER", es:esVal, sim:simVal}]); refreshMeta();
     });
     div.querySelector('[data-action="del"]')?.addEventListener('click', ()=>{
@@ -837,7 +837,7 @@ document.getElementById("btnCreate")?.addEventListener("click", ()=>{
   const prevSim=USER.es2sim[kEs]; if(prevSim && prevSim!==sim){ delete USER.sim2es[normSim(prevSim)]; }
   const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==es){ delete USER.es2sim[normEs(prevEs)]; }
   USER.es2sim[kEs]=sim; USER.sim2es[kSim]=es;
-  HISTORY=[...HISTORY,{es,sim,t:new Date().toISOString()}].slice(-10);
+  HISTORY=[...HISTORY,{es,sim,t:new Date().toISOString()}].slice(-50);
   saveUser(USER); saveHistory(HISTORY);
   $newEs.value=""; $newSim.value="";
   renderResults([{scope:"USER", es, sim}]); refreshMeta();
@@ -935,7 +935,7 @@ async function pullFromHost(){
       USER.es2sim = rebuilt.es2sim;
       USER.sim2es = rebuilt.sim2es;
       saveUser(USER);
-      if(Array.isArray(data.history)){ HISTORY=data.history.slice(-10); saveHistory(HISTORY); }
+      if(Array.isArray(data.history)){ HISTORY=data.history.slice(-50); saveHistory(HISTORY); }
       lastPushOk=true; dirtySinceLastPush=false;
     }
   }catch(e){ lastPushOk=false; }
@@ -996,7 +996,7 @@ function normalizeImportedJSON(raw){
   if(raw && typeof raw==="object"){
     if(raw.user && (raw.user.es2sim || raw.user.sim2es)){
       user = raw.user;
-      if(Array.isArray(raw.history)) history = raw.history.slice(-10);
+      if(Array.isArray(raw.history)) history = raw.history.slice(-50);
     }else if(raw.es2sim || raw.sim2es){
       user = { es2sim: raw.es2sim||{}, sim2es: raw.sim2es||{} };
     }else if(Array.isArray(raw)){
@@ -1083,7 +1083,7 @@ function applyImport(candidate, mode){
     }
   }
   if(Array.isArray(candidate.history) && candidate.history.length){
-    HISTORY = candidate.history.slice(-10);
+    HISTORY = candidate.history.slice(-50);
     saveHistory(HISTORY);
   }
   saveUser(USER);
@@ -1149,6 +1149,17 @@ function init(){
   refreshMeta();
 }
 init();
+
+let __lastPullTs = 0;
+function schedulePullAfterPush(ok){
+  if(ok!==true) return;
+  const now = Date.now();
+  if(now - __lastPullTs < 10000) return; // cooldown 10s
+  __lastPullTs = now;
+  pullFromHost();
+}
+
+setInterval(pullFromHost,30000);
 </script>
 
 <!-- Contador de visitas en footer -->
@@ -1165,6 +1176,17 @@ init();
     .then(d=> setCount((d && d.value) ? d.value : 1))
     .catch(()=> setCount(1));
 })();
+
+let __lastPullTs = 0;
+function schedulePullAfterPush(ok){
+  if(ok!==true) return;
+  const now = Date.now();
+  if(now - __lastPullTs < 10000) return; // cooldown 10s
+  __lastPullTs = now;
+  pullFromHost();
+}
+
+setInterval(pullFromHost,30000);
 </script>
 
 
@@ -1326,6 +1348,17 @@ const doTranslate = () => {
       }
     }).catch(e=>console.error("DB load failed", e));
 })();
+
+let __lastPullTs = 0;
+function schedulePullAfterPush(ok){
+  if(ok!==true) return;
+  const now = Date.now();
+  if(now - __lastPullTs < 10000) return; // cooldown 10s
+  __lastPullTs = now;
+  pullFromHost();
+}
+
+setInterval(pullFromHost,30000);
 </script>
 
 <!-- Guardar con espejo (core > usuario) -->
@@ -1403,6 +1436,17 @@ const doTranslate = () => {
     }
   });
 })();
+
+let __lastPullTs = 0;
+function schedulePullAfterPush(ok){
+  if(ok!==true) return;
+  const now = Date.now();
+  if(now - __lastPullTs < 10000) return; // cooldown 10s
+  __lastPullTs = now;
+  pullFromHost();
+}
+
+setInterval(pullFromHost,30000);
 </script>
 
 <!-- Export/Import UI enhancers: "punto" toggles for core -->
@@ -1619,6 +1663,17 @@ const doTranslate = () => {
     }
   }, 100);
 })();
+
+let __lastPullTs = 0;
+function schedulePullAfterPush(ok){
+  if(ok!==true) return;
+  const now = Date.now();
+  if(now - __lastPullTs < 10000) return; // cooldown 10s
+  __lastPullTs = now;
+  pullFromHost();
+}
+
+setInterval(pullFromHost,30000);
 </script>
 
 
@@ -1645,6 +1700,17 @@ const doTranslate = () => {
       setTimeout(()=> led && led.classList.remove("pulse"), 300);
     }};
 })();
+
+let __lastPullTs = 0;
+function schedulePullAfterPush(ok){
+  if(ok!==true) return;
+  const now = Date.now();
+  if(now - __lastPullTs < 10000) return; // cooldown 10s
+  __lastPullTs = now;
+  pullFromHost();
+}
+
+setInterval(pullFromHost,30000);
 </script>
 
 
@@ -1719,6 +1785,17 @@ const doTranslate = () => {
   }
   setTimeout(hook,150);
 })();
+
+let __lastPullTs = 0;
+function schedulePullAfterPush(ok){
+  if(ok!==true) return;
+  const now = Date.now();
+  if(now - __lastPullTs < 10000) return; // cooldown 10s
+  __lastPullTs = now;
+  pullFromHost();
+}
+
+setInterval(pullFromHost,30000);
 </script>
 
 
@@ -1729,6 +1806,17 @@ document.addEventListener('DOMContentLoaded', () => {
   window.setLED = () => {};
   document.querySelectorAll('.auto-led,.led,.dot').forEach(n=>n.remove());
 });
+
+let __lastPullTs = 0;
+function schedulePullAfterPush(ok){
+  if(ok!==true) return;
+  const now = Date.now();
+  if(now - __lastPullTs < 10000) return; // cooldown 10s
+  __lastPullTs = now;
+  pullFromHost();
+}
+
+setInterval(pullFromHost,30000);
 </script>
 
 
@@ -1753,6 +1841,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }catch(e){ alert('No se pudo exportar: ' + (e.message||e)); }
   }, {once:false});
 })();
+
+let __lastPullTs = 0;
+function schedulePullAfterPush(ok){
+  if(ok!==true) return;
+  const now = Date.now();
+  if(now - __lastPullTs < 10000) return; // cooldown 10s
+  __lastPullTs = now;
+  pullFromHost();
+}
+
+setInterval(pullFromHost,30000);
 </script>
 
 
@@ -1825,6 +1924,17 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 })();
+
+let __lastPullTs = 0;
+function schedulePullAfterPush(ok){
+  if(ok!==true) return;
+  const now = Date.now();
+  if(now - __lastPullTs < 10000) return; // cooldown 10s
+  __lastPullTs = now;
+  pullFromHost();
+}
+
+setInterval(pullFromHost,30000);
 </script>
 
 
@@ -1849,12 +1959,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const orig = window[name];
     if (typeof orig !== 'function') return;
     window[name] = function(...args){
-      if (shouldSkipSave()) return;
+      // removed skip-save
       return orig.apply(this, args);
     };
   };
   ['applyLearning','saveUser','appendHistory','schedulePushToHost'].forEach(wrap);
 })();
+
+let __lastPullTs = 0;
+function schedulePullAfterPush(ok){
+  if(ok!==true) return;
+  const now = Date.now();
+  if(now - __lastPullTs < 10000) return; // cooldown 10s
+  __lastPullTs = now;
+  pullFromHost();
+}
+
+setInterval(pullFromHost,30000);
 </script>
 
 </body>
