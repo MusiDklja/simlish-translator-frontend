@@ -488,37 +488,12 @@ function expandMultiSimToken(token){ return token.replace(/_/g, " "); }
 /* ===================== Utilidades varias ===================== */
 function currentSimOwner(sim){ const k=normSim(sim); if(USER.sim2es[k]) return {scope:"USER", es:USER.sim2es[k]}; if(CORE_SIM2ES.has(k)) return {scope:"CORE", es:CORE_SIM2ES.get(k)}; return null; }
 function preserveCase(o,r){ return /^[A-Z]/.test(o) ? r.charAt(0).toUpperCase()+r.slice(1) : r; }
-/* === AJUSTE: evitar dígitos y no generar variantes numéricas === */
 function ensureUniqueSim(sim, es){
-  const base = normSim(sim);
-  const owner = currentSimOwner(base);
-
-  // si no hay dueño o ya mapea al mismo ES (sinónimos), mantener
-  if(!owner || esSynSet(owner.es).has(normEs(es))) return sim;
-
-  // Sufijos solo alfabéticos
-  const sufijos = ["ah","eh","oh","nu","ru","va","la","ra","ba","sha","ka","mi","lo","za","vi","do","fu","na","mu","ri","ti","vo","lu","re","zo"];
-  for(const s of sufijos){
-    const cand = base + s;
-    if(!currentSimOwner(cand)) return preserveCase(sim, cand);
-  }
-
-  // Añadir sílaba extra
-  const extraSyl = ["su","la","noo","boo","zim","zam","sha","bah","voh","plar","gib","yib","flo","fru","doo","ka","ru","shi","ku","va","na","mo","ta","re","lo"];
-  for (const syl of extraSyl){
-    const cand = base + syl;
-    if(!currentSimOwner(cand)) return preserveCase(sim, cand);
-  }
-
-  // Variante con h/vocal
-  const hv = ["ha","he","hi","ho","hu","ah","eh","ih","oh","uh"];
-  for (const s of hv){
-    const cand = base + s;
-    if(!currentSimOwner(cand)) return preserveCase(sim, cand);
-  }
-
-  // Último recurso, sin números
-  return preserveCase(sim, base + "xah");
+  let base=normSim(sim); const owner=currentSimOwner(base);
+  if(!owner || normEs(owner.es).includes(normEs(es))) return sim;
+  const suff=["ah","eh","oh","nu","ru","va","la","ra","ba"];
+  for(const s of suff){ const cand=base+s; if(!currentSimOwner(cand)) return preserveCase(sim,cand); }
+  let i=2; while(currentSimOwner(base+i)) i++; return preserveCase(sim, base+i);
 }
 function esSynSet(esStr){
   const raw = String(esStr||"");
@@ -837,7 +812,7 @@ function renderResults(list){
         <button class="btn sec" ${locked?'disabled':''} data-action="del">Eliminar</button>
       </div>
       <small>${isCore? 'CORE · No editable. Puedes crear una sobreescritura en Usuario si quieres cambiarlo.' : 'Usuario · Editable'}</small>`;
-    div.querySelector('[data-action="save"]')?.addEventListener('click', ()=>{
+    div.querySelector('[data-action="save"]')?.addEventListener('click', async ()=>{
       const esVal=document.getElementById(esId).value.trim(); let simVal=document.getElementById(simId).value.trim();
       if(!esVal){ alert("Falta Español."); return; } if(!simVal){ simVal=synth(esVal); }
       simVal=ensureUniqueSim(simVal, esVal);
@@ -846,9 +821,11 @@ function renderResults(list){
       const prevEs=USER.sim2es[kSim]; if(prevEs && prevEs!==esVal){ delete USER.es2sim[normEs(prevEs)]; }
       USER.es2sim[kEs]=simVal; USER.sim2es[kSim]=esVal;
       HISTORY=[...HISTORY,{es:esVal,sim:simVal,t:new Date().toISOString()}].slice(-10);
-      saveUser(USER); saveHistory(HISTORY); renderResults([{scope:"USER", es:esVal, sim:simVal}]); refreshMeta();
+      saveUser(USER); saveHistory(HISTORY);
+      renderResults([{scope:"USER", es:esVal, sim:simVal}]); refreshMeta();
+      try { await pushToHost(); await new Promise(r=>setTimeout(r,300)); await pullFromHost(); } catch(_){}
     });
-    div.querySelector('[data-action="del"]')?.addEventListener('click', ()=>{
+    div.querySelector('[data-action="del"]')?.addEventListener('click', async ()=>{
       const esVal=document.getElementById(esId).value.trim(); const simVal=document.getElementById(simId).value.trim();
       if(!esVal || !simVal) return;
       if(!confirm(`¿Eliminar el par:\nES: "${esVal}"\nSIM: "${simVal}"?`)) return;
@@ -857,6 +834,7 @@ function renderResults(list){
       if(USER.sim2es[kSim] && normEs(USER.sim2es[kSim])===kEs) delete USER.sim2es[kSim];
       saveUser(USER); refreshMeta();
       div.remove();
+      try { await pushToHost(); await new Promise(r=>setTimeout(r,300)); await pullFromHost(); } catch(_){}
     });
     $results.appendChild(div);
   }
@@ -870,7 +848,7 @@ document.getElementById("btnGen")?.addEventListener("click", ()=>{
   const es= (document.getElementById("newEs")?.value||"").trim(); if(!es){ alert("Escribe Español."); return; }
   document.getElementById("newSim").value = ensureUniqueSim(synth(es), es);
 });
-document.getElementById("btnCreate")?.addEventListener("click", ()=>{
+document.getElementById("btnCreate")?.addEventListener("click", async ()=>{
   const $newEs=document.getElementById("newEs"); const $newSim=document.getElementById("newSim");
   if(!$newEs||!$newSim){ return; }
   const es=($newEs.value||"").trim(); let sim=($newSim.value||"").trim();
@@ -884,6 +862,7 @@ document.getElementById("btnCreate")?.addEventListener("click", ()=>{
   saveUser(USER); saveHistory(HISTORY);
   $newEs.value=""; $newSim.value="";
   renderResults([{scope:"USER", es, sim}]); refreshMeta();
+  try { await pushToHost(); await new Promise(r=>setTimeout(r,300)); await pullFromHost(); } catch(_){}
 });
 document.getElementById("btnRescan")?.addEventListener("click", ()=>{
   refreshMeta();
@@ -891,7 +870,7 @@ document.getElementById("btnRescan")?.addEventListener("click", ()=>{
 });
 
 /* Fusionar conflicto por sinónimos */
-function resolveConflictBySynonyms(sim){
+async function resolveConflictBySynonyms(sim){
   const kSim = normSim(sim);
   const confs = scanConflicts().filter(c=>normSim(c.sim)===kSim);
   if(!confs.length){ alert("No hay conflicto para ese SIM."); return; }
@@ -909,44 +888,7 @@ function resolveConflictBySynonyms(sim){
   saveUser(USER); refreshMeta();
   if($confList && $confList.style.display!=="none"){ renderConflictsList(scanConflicts()); }
   alert(`Fusionado como sinónimos para "${sim}": ${joined}`);
-}
-
-/* ===== Migración: eliminar números de SIM generados ===== */
-function fixNumericSimKeys(){
-  let changed = 0;
-  const sim2es = USER?.sim2es || {};
-
-  for (const simKey of Object.keys(sim2es)){
-    if(/\d/.test(simKey)){ // contiene dígitos
-      const es = sim2es[simKey];
-
-      // base tentativa sin dígitos finales; si queda vacío, quita todos
-      const baseGuess = simKey.replace(/\d+$/,'').replace(/[_-]+$/,'') || simKey.replace(/\d/g,'');
-      const pretty = ensureUniqueSim(baseGuess || "sim", es);  // reasigna sin números
-      const kOld = simKey;
-      const kNew = normSim(pretty);
-
-      if(kNew !== kOld){
-        // actualizar mapas
-        delete USER.sim2es[kOld];
-        USER.sim2es[kNew] = es;
-        USER.es2sim[normEs(es)] = pretty;
-
-        // actualizar historial reciente si aparece
-        if(Array.isArray(HISTORY)){
-          HISTORY = HISTORY.map(h => (normSim(h.sim||"")===kOld) ? ({...h, sim: pretty}) : h);
-        }
-        changed++;
-      }
-    }
-  }
-
-  if(changed){
-    saveUser(USER);
-    saveHistory(HISTORY);
-    refreshMeta?.();
-  }
-  return changed;
+  try { await pushToHost(); await new Promise(r=>setTimeout(r,300)); await pullFromHost(); } catch(_){}
 }
 
 /* ===================== SYNC ===================== */
@@ -997,17 +939,11 @@ async function pullFromHost(){
 
     if(srvUser){
       USER=USER||defaultUserStore();
-      USER.es2sim=Object.assign({}, USER.es2sim||{}, srvUser.es2sim||{});
-      USER.sim2es=Object.assign({}, USER.sim2es||{}, srvUser.sim2es||{});
+      /* server primero, luego local → local prevalece */
+      USER.es2sim = Object.assign({}, srvUser.es2sim || {}, USER.es2sim || {});
+      USER.sim2es = Object.assign({}, srvUser.sim2es || {}, USER.sim2es || {});
       saveUser(USER);
       if(Array.isArray(data.history)){ HISTORY=data.history.slice(-10); saveHistory(HISTORY); }
-
-      // Migrar SIM con números y re-subir si hubo cambios
-      const migrated = fixNumericSimKeys();
-      if(migrated){
-        try{ await pushToHost(); }catch(_){}
-      }
-
       lastPushOk=true; dirtySinceLastPush=false;
     }
   }catch(e){ lastPushOk=false; }
@@ -1050,16 +986,7 @@ function doTranslate(){
 }
 
 /* ===================== INIT ===================== */
-function init(){
-  setDir(DIR.ES2SIM);
-  pullFromHost();
-  const migratedLocal = fixNumericSimKeys();
-  if(migratedLocal){
-    try{ pushToHost(); }catch(_){}
-  }
-  refreshMeta();
-  updateVisits();
-}
+function init(){ setDir(DIR.ES2SIM); pullFromHost(); refreshMeta(); updateVisits(); }
 init();
 
 /* ===== Import / Restore (Admin) ===== */
@@ -1110,17 +1037,23 @@ document.getElementById("btnImportReplace")?.addEventListener("click", async ()=
 /* ===================== VISITS COUNTER ===================== */
 const $visitCount = document.getElementById("visitCount");
 async function updateVisits(){
+  const KEY = "simuchVisitCount";
+  const localVal = Number(localStorage.getItem(KEY)) || 0;
+
   try{
     const r = await fetch(BACKEND_URL + "visit", { method:"GET", mode:"cors", cache:"no-store" });
     if(!r.ok) throw new Error("bad status");
     const data = await r.json();
-    if($visitCount && typeof data.visits === "number"){
-      $visitCount.textContent = String(data.visits);
-    }
+
+    let val = Number(data.visits) || 0;
+    if(val < localVal) val = localVal;
+
+    if($visitCount) $visitCount.textContent = String(val);
+    localStorage.setItem(KEY, String(val));
   }catch(e){
-    if($visitCount) $visitCount.textContent = "—";
+    if($visitCount) $visitCount.textContent = localVal ? String(localVal) : "—";
   }
 }
 </script>
 </body>
-  </html>
+</html>
