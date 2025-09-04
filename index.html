@@ -228,6 +228,8 @@ body, .wrap, .section, .footer, .header { color: var(--ink) !important; }
           <span class="chip" id="confBadge" style="cursor:pointer" title="Ver conflictos">Conflictos: <b id="confCount">0</b></span>
           <span class="chip">Lex: <b id="metaLex">-</b></span>
           <span class="chip" id="hostChip" title="Estado de sincronización con host">Host: <b id="hostState">Listo</b></span>
+        
+          <span class="chip" id="visitsChip"><span style="color:var(--accent);font-weight:800">Visitas:</span> <b id="visitCount" style="color:var(--accent-alt)">—</b></span>
         </div>
         <div id="confList" class="confList" style="display:none"></div>
       </div>
@@ -268,6 +270,16 @@ body, .wrap, .section, .footer, .header { color: var(--ink) !important; }
         <div id="results" class="list"></div>
 
         <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+        <details class="mini" style="margin-top:10px">
+          <summary><b>Importar / Restaurar</b></summary>
+          <div class="row" style="grid-template-columns:1fr auto auto; margin-top:8px">
+            <input id="importUserFile" type="file" accept=".json,application/json" />
+            <button id="btnImportMerge" class="btn sec" style="width:auto">Fusionar</button>
+            <button id="btnImportReplace" class="btn warn" style="width:auto">Reemplazar</button>
+          </div>
+          <p class="small muted">Usa archivos creados con “Exportar respaldo (.json)”. Soporta <code>user</code>/<code>history</code> o <code>userDict</code>.</p>
+        </details>
+        
 
         <!-- Generador previo a guardar -->
         <div class="row">
@@ -710,7 +722,7 @@ $exportBtn.addEventListener("click", ()=>{
   const blob=new Blob([data], {type:"application/json"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
-  a.download=`simlish-backup-v${CORE_VERSION}.json`;
+  a.download="simuch-backup-user.json";
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 });
@@ -933,8 +945,68 @@ function doTranslate(){
 }
 
 /* ===================== INIT ===================== */
-function init(){ setDir(DIR.ES2SIM); pullFromHost(); refreshMeta(); }
+function init(){ setDir(DIR.ES2SIM); pullFromHost(); refreshMeta(); updateVisits(); }
 init();
+
+// ===== Import / Restore (Admin) =====
+async function parseBackupFile(file){
+  const text = await file.text();
+  let data;
+  try{ data = JSON.parse(text); }catch(e){ alert("Archivo JSON inválido."); throw e; }
+  let user=null, history=[];
+  if(data && typeof data==='object'){
+    if(data.user && (data.user.es2sim || data.user.sim2es)){ user = { es2sim:data.user.es2sim||{}, sim2es:data.user.sim2es||{} }; }
+    else if(data.userDict && (data.userDict.ES2SIM || data.userDict.SIM2ES)){ user = { es2sim:data.userDict.ES2SIM||{}, sim2es:data.userDict.SIM2ES||{} }; }
+    else if(data.es2sim || data.sim2es){ user = { es2sim:data.es2sim||{}, sim2es:data.sim2es||{} }; }
+    else if(data.ES2SIM || data.SIM2ES){ user = { es2sim:data.ES2SIM||{}, sim2es:data.SIM2ES||{} }; }
+    if(Array.isArray(data.history)) history = data.history;
+  }
+  if(!user) throw new Error("Respaldo sin datos de usuario.");
+  return { user, history };
+}
+function importMerge(user, history){
+  USER.es2sim = { ...(USER.es2sim||{}), ...(user.es2sim||{}) };
+  USER.sim2es = { ...(USER.sim2es||{}), ...(user.sim2es||{}) };
+  if(Array.isArray(history) && history.length){
+    HISTORY = [...(HISTORY||[]), ...history].slice(-50);
+  }
+  saveUser(USER); saveHistory(HISTORY);
+  refreshMeta(); alert("Importación fusionada correctamente.");
+}
+function importReplace(user, history){
+  USER = { es2sim: user.es2sim||{}, sim2es: user.sim2es||{} };
+  HISTORY = Array.isArray(history) ? history.slice(-50) : [];
+  saveUser(USER); saveHistory(HISTORY);
+  refreshMeta(); alert("Importación reemplazada correctamente.");
+}
+document.getElementById("btnImportMerge")?.addEventListener("click", async ()=>{
+  const f = document.getElementById("importUserFile")?.files?.[0];
+  if(!f){ alert("Selecciona un archivo .json"); return; }
+  try{ const {user, history} = await parseBackupFile(f); importMerge(user, history); }catch(e){ console.error(e); alert("No se pudo importar."); }
+});
+document.getElementById("btnImportReplace")?.addEventListener("click", async ()=>{
+  const f = document.getElementById("importUserFile")?.files?.[0];
+  if(!f){ alert("Selecciona un archivo .json"); return; }
+  if(!confirm("¿Reemplazar completamente tus datos de usuario por el respaldo?")) return;
+  try{ const {user, history} = await parseBackupFile(f); importReplace(user, history); }catch(e){ console.error(e); alert("No se pudo importar."); }
+});
+
+
+/* ===================== VISITS COUNTER ===================== */
+const $visitCount = document.getElementById("visitCount");
+async function updateVisits(){
+  try{
+    const r = await fetch(BACKEND_URL + "visit", { method:"GET", mode:"cors", cache:"no-store" });
+    if(!r.ok) throw new Error("bad status");
+    const data = await r.json();
+    if($visitCount && typeof data.visits === "number"){
+      $visitCount.textContent = String(data.visits);
+    }
+  }catch(e){
+    // keep silent if backend doesn't expose /visit
+    if($visitCount) $visitCount.textContent = "—";
+  }
+}
 </script>
 </body>
 </html>
