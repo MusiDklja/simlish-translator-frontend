@@ -488,12 +488,28 @@ function expandMultiSimToken(token){ return token.replace(/_/g, " "); }
 /* ===================== Utilidades varias ===================== */
 function currentSimOwner(sim){ const k=normSim(sim); if(USER.sim2es[k]) return {scope:"USER", es:USER.sim2es[k]}; if(CORE_SIM2ES.has(k)) return {scope:"CORE", es:CORE_SIM2ES.get(k)}; return null; }
 function preserveCase(o,r){ return /^[A-Z]/.test(o) ? r.charAt(0).toUpperCase()+r.slice(1) : r; }
+/* >>>>>>> ÚNICO CAMBIO IMPORTANTE: sin sufijo numérico */
 function ensureUniqueSim(sim, es){
-  let base=normSim(sim); const owner=currentSimOwner(base);
+  let base=normSim(sim);
+  const owner=currentSimOwner(base);
   if(!owner || normEs(owner.es).includes(normEs(es))) return sim;
-  const suff=["ah","eh","oh","nu","ru","va","la","ra","ba"];
-  for(const s of suff){ const cand=base+s; if(!currentSimOwner(cand)) return preserveCase(sim,cand); }
-  let i=2; while(currentSimOwner(base+i)) i++; return preserveCase(sim, base+i);
+
+  // 1) Sufijos suaves primero
+  const suff=["ah","eh","oh","nu","ru","va","la","ra","ba","sha","ka","mo","ta","lo","za","xi","fu","mi","ne","vi"];
+  for(const s of suff){
+    const cand=base+s;
+    if(!currentSimOwner(cand)) return preserveCase(sim,cand);
+  }
+
+  // 2) Variante determinística a partir del hash (usa sílabas existentes)
+  const rnd = xorshift32(hashStr(base+"|"+normEs(es)));
+  for(let j=0;j<24;j++){
+    const cand = base + SYLL[Math.floor(rnd()*SYLL.length)];
+    if(!currentSimOwner(cand)) return preserveCase(sim,cand);
+  }
+
+  // 3) Fallback definitivo (sin números)
+  return preserveCase(sim, base+"xah");
 }
 function esSynSet(esStr){
   const raw = String(esStr||"");
@@ -532,8 +548,8 @@ function scanConflicts(){
   for(const [sim, groups] of bySim.entries()){
     const compact = groups.filter(g=>g && g.size>0);
     if(compact.length > 1){ conflicts.push({ sim, groups: compact.map(g=>Array.from(g)) }); }
+    return conflicts;
   }
-  return conflicts;
 }
 
 /* ===================== Tiempos + Generador + Aprendizaje ===================== */
