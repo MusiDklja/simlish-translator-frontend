@@ -652,7 +652,7 @@ const $strictBanner=document.getElementById("strictBanner");
 const $confList=document.getElementById("confList");
 
 /* ===================== UI helpers ===================== */
-function setDir(d){ CURRENT_DIR=d; const lbl=d===DIR.ES2SIM?"ES → SIM":"SIM → ES"; $dirLabel.textContent=lbl; if($stateDirVal) $stateDirVal.textContent=lbl.replace(" ",""); }
+function setDir(d){ CURRENT_DIR = d; const lbl = d===DIR.ES2SIM ? "ES → SIM" : "SIM → ES"; if($dirLabel) $dirLabel.textContent = lbl; if($stateDirVal) $stateDirVal.textContent = lbl.replace(/\s/g,""); }
 $toggleDir.addEventListener("click", ()=> setDir(CURRENT_DIR===DIR.ES2SIM?DIR.SIM2ES:DIR.ES2SIM));
 
 function renderConflictsList(conflicts){
@@ -1024,6 +1024,24 @@ document.getElementById("btnImportReplace")?.addEventListener("click", async ()=
   if(!confirm("¿Reemplazar completamente tus datos de usuario por el respaldo?")) return;
   try{ const {user, history} = await parseBackupFile(f); importReplace(user, history); }catch(e){ console.error(e); }
 });
+
+
+// Safe helpers injected
+(function(){
+  try{
+    const $panel = document.getElementById('secretPanel');
+    const $unlock = document.getElementById('secretUnlock');
+    if($unlock && $panel){
+      document.addEventListener('keydown', (e)=>{
+        if(e.ctrlKey && e.key === '.') { e.preventDefault(); $panel.style.display = ($panel.style.display==='block'?'none':'block'); }
+      });
+    }
+  }catch(e){ console.error(e); }
+  // Ping host on load
+  try{
+    if(typeof checkHost === 'function'){ checkHost(); }
+  }catch(e){}
+})();
 
 </script>
 </body>
