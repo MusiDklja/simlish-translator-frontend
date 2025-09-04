@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Simlish Translator · ES ⇄ SIM · Core v3.1</title>
-<meta name="description" content="Traductor bidireccional Español ⇄ Simlish con aprendizaje y sincronización estricta a backend.">
+
+<meta name="description" content="Traductor bidireccional Español ⇄ Simuch con aprendizaje y sincronización estricta a backend.">
 <!-- CSP: solo self y tu backend en Render -->
 <meta http-equiv="Content-Security-Policy"
   content="default-src 'self';
@@ -19,7 +19,7 @@
   *{box-sizing:border-box}
   html,body{height:100%}
   body{ margin:0; background:radial-gradient(1200px 800px at 15% -10%, #0a2b2f 0%, transparent 50%), linear-gradient(180deg,#041017,#06141a 35%, #06141a 100%); color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; overflow-x:hidden; }
-  header{padding:20px 24px;border-bottom:1px solid var(--line);background:#06141acc;backdrop-filter:blur(6px)}
+  header{padding:20px 24px;border-bottom:1px solid var(--line);background:#06141acc;}
   h1{margin:0;font-size:1.25rem;display:flex;gap:10px;align-items:center}
   .pill{display:inline-block;background:var(--accent);color:#04201a;padding:2px 10px;border-radius:999px;font-weight:800;font-size:.8rem}
   .wrap{padding:20px 24px 28px;display:grid;gap:16px;max-width:1100px;margin:0 auto}
@@ -56,11 +56,158 @@
   .confList{margin-top:10px;border:1px dashed var(--line);border-radius:12px;padding:10px;background:#06181e}
   .confItem{padding:8px;border:1px solid var(--line);border-radius:10px;margin-top:8px;background:#071b20}
   .confItem b{color:var(--accent)}
+  /* Import */
+  .impGrid{display:grid;gap:8px}
+  .impActions{display:flex;gap:8px;flex-wrap:wrap}
 </style>
+<style id="musi-theme-final">
+  :root {
+    --bg:#3a0ca3;
+    --bg2:#240046;
+    --ink:#fef9ff;
+    --muted:#d0b3ff;
+    --line:#4b1d74;
+    --accent:#ff7b2d;
+    --accent-strong:#ffb02e;
+    --accent-alt:#9d4edd;
+  }
+  html, body {
+ height: 100%; margin: 0; padding: 0; background: linear-gradient(135deg, #9d4edd 0%, #5a189a 50%, #240046 100%); background-blend-mode: overlay, normal; background-attachment: scroll; background-repeat: no-repeat; background-size: cover; color: var(--ink); overflow-x: hidden;  background: linear-gradient(135deg, #9d4edd 0%, #5a189a 50%, #240046 100%); background-repeat: no-repeat; background-size: cover; background-color: #240046; min-height: 100svh; }
+
+  .btn, .pill, .dirbtn {
+    background-image:
+      linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='1' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='table' tableValues='0 0 .04 .06 .08 .1 .12 .14'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    background-blend-mode: overlay, normal;
+    color: #24110a;
+    border: none;
+  }
+  .btn.sec {
+    background-image:
+      linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0)),
+      linear-gradient(180deg, #3b0a6f, #2b0652);
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+</style>
+<style>
+/* Auto-detect indicator LED */
+.auto-led {
+  display:inline-block;
+  width:12px; height:12px;
+  margin-left:8px;
+  border-radius:999px;
+  background: rgba(255,255,255,0.15);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+  vertical-align: middle;
+  transition: box-shadow .25s ease, background .25s ease, transform .25s ease, opacity .25s ease;
+  opacity:.6;
+}
+.auto-led.on-orange {
+  background: linear-gradient(135deg, #ffa63a, #ff7a00);
+  box-shadow: 0 0 10px 2px rgba(255,122,0,.55), 0 0 2px 1px rgba(255,255,255,.25) inset;
+  opacity:1;
+}
+.auto-led.on-purple {
+  background: linear-gradient(135deg, #7a2cff, #a33cff);
+  box-shadow: 0 0 10px 2px rgba(162,52,255,.55), 0 0 2px 1px rgba(255,255,255,.25) inset;
+  opacity:1;
+}
+.auto-led.pulse {
+  transform: scale(1.08);
+}
+</style>
+<style id="win95-pastel-style">
+:root{
+  --bg: #2a1b4f;        /* fondo más pastel */
+  --panel: #3a2570;     /* panel más claro */
+  --ink: #f3ecff;       /* texto lavanda */
+  --accent: #ffb347;    /* naranja suave */
+  --accent-dk: #e39b36; /* hover */
+  --bevel-light: #5a3e98;
+  --bevel-dark: #1a0f34;
+}
+/* eliminar efectos caros */
+*{filter:none !important; backdrop-filter:none !important; text-shadow:none !important;
+  transition:none !important; animation:none !important; box-shadow:none !important;}
+
+/* fondo sólido */
+html,body{background: var(--bg) !important;}
+
+/* contenedores planos con bisel Win95 */
+.card, .panel, .box, .wrap, .section, .toolbar, .footer, .header, .container {
+  background: var(--panel) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--bevel-dark) !important;
+  border-left-color: var(--bevel-light) !important;
+  border-top-color: var(--bevel-light) !important;
+  border-right-color: var(--bevel-dark) !important;
+  border-bottom-color: var(--bevel-dark) !important;
+  border-radius: 0 !important;
+}
+
+/* inputs / textarea */
+input, textarea, select {
+  background: #241645 !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--bevel-dark) !important;
+  border-left-color: var(--bevel-light) !important;
+  border-top-color: var(--bevel-light) !important;
+  border-right-color: var(--bevel-dark) !important;
+  border-bottom-color: var(--bevel-dark) !important;
+  border-radius: 0 !important;
+}
+input:focus, textarea:focus, select:focus { outline: 2px solid #bca7ff; outline-offset: 0; }
+
+/* botones */
+button, .btn, .pill, .badge {
+  color: #2a1600 !important;
+  background: var(--accent) !important;
+  border: 1px solid var(--bevel-dark) !important;
+  border-left-color: var(--bevel-light) !important;
+  border-top-color: var(--bevel-light) !important;
+  border-right-color: var(--bevel-dark) !important;
+  border-bottom-color: var(--bevel-dark) !important;
+  border-radius: 0 !important;
+}
+button:hover, .btn:hover { background: var(--accent-dk) !important; }
+button:active, .btn:active { transform: translateY(1px); }
+
+/* texto general */
+body, .wrap, .section, .footer, .header { color: var(--ink) !important; }
+
+/* eliminar gradientes/fondos previos */
+*{ background-image: none !important; }
+</style>
+<style id="kill-led-style">
+.auto-led, .led, .dot { display:none !important; width:0 !important; height:0 !important; }
+</style>
+<style>
+  .auto-led{display:inline-block;width:12px;height:12px;margin-left:8px;border-radius:999px;background:rgba(255,255,255,.15);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);vertical-align:middle;transition:.25s;opacity:.6}
+  .auto-led.on-orange{background:linear-gradient(135deg,#ffa63a,#ff7a00);box-shadow:0 0 10px 2px rgba(255,122,0,.55),0 0 2px 1px rgba(255,255,255,.25) inset;opacity:1}
+  .auto-led.on-purple{background:linear-gradient(135deg,#7a2cff,#a33cff);box-shadow:0 0 10px 2px rgba(162,52,255,.55),0 0 2px 1px rgba(255,255,255,.25) inset;opacity:1}
+  .auto-led.pulse{transform:scale(1.08)}
+</style>
+
+
+<style id="simuch-chip-fix">
+  .chip{ background:#24153f !important; color:#f2f5ff !important; border:1px solid rgba(255,255,255,.06) !important; }
+  .chip.ok, .chip.warn{ background:#24153f !important; } /* no orange fill by default */
+  #hostState.ok{ color: var(--accent) !important; } /* text only turns orange on OK */
+  .muted, .small.muted, .brand-muted, footer .muted { color:#a78bfa !important; }
+</style>
+
+
+    <style>
+      details.mini summary{cursor:pointer; user-select:none}
+      details.mini summary::-webkit-details-marker{display:none}
+      details.mini{border:1px dashed var(--line); border-radius:8px; padding:8px; background:#0c0c20}
+    </style>
+    
 </head>
 <body>
   <header>
-    <h1>Simlish Translator <span class="pill">ES ⇄ SIM · Core v3.1</span></h1>
+    <h1>Simuch Translator <span class="pill">ES ⇄ SIMUCH · Core v3.1</span></h1>
   </header>
 
   <main class="wrap">
@@ -137,6 +284,16 @@
         <div id="results" class="list"></div>
 
         <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+    <details class="mini" style="margin-top:10px">
+      <summary><b>Importar / Restaurar</b></summary>
+      <div class="row" style="grid-template-columns:1fr auto auto; margin-top:8px">
+        <input id="importUserFile" type="file" accept=".json,application/json" />
+        <button id="btnImportMerge" class="btn sec" style="width:auto">Fusionar</button>
+        <button id="btnImportReplace" class="btn warn" style="width:auto">Reemplazar</button>
+      </div>
+      <p class="small muted">Usa archivos creados con “Exportar respaldo (.json)”. Soporta <code>user</code>/<code>history</code> o <code>userDict</code>.</p>
+    </details>
+    
 
         <!-- Generador previo a guardar -->
         <div class="row">
@@ -164,8 +321,8 @@
 /* ===================== CONFIG + HELPERS ===================== */
 const CORE_VERSION = "3.1";
 const STRICT_MODE = true;
-const KEY_USER = `simlishLexiconUser:${CORE_VERSION}`;
-const KEY_HISTORY = `simlishLexiconHistory:${CORE_VERSION}`;
+const KEY_USER = `simuchLexiconUser:${CORE_VERSION}`; const KEY_USER_OLD = `simlishLexiconUser:${CORE_VERSION}`;
+const KEY_HISTORY = `simuchLexiconHistory:${CORE_VERSION}`; const KEY_HISTORY_OLD = `simlishLexiconHistory:${CORE_VERSION}`;
 const DIR = { ES2SIM:"ES2SIM", SIM2ES:"SIM2ES" };
 let CURRENT_DIR = DIR.ES2SIM;
 let lastLearnedCount = 0;
@@ -190,9 +347,9 @@ const normEs = s => deacc(String(s||"").toLowerCase()).trim();
 const normSim = s => String(s||"").toLowerCase().trim();
 
 function defaultUserStore(){ return { es2sim:{}, sim2es:{} }; }
-function loadUser(){ try{ return JSON.parse(localStorage.getItem(KEY_USER)||"") || defaultUserStore(); } catch{ return defaultUserStore(); } }
-function saveUser(store){ try{ localStorage.setItem(KEY_USER, JSON.stringify(store)); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
-function loadHistory(){ try{ return JSON.parse(localStorage.getItem(KEY_HISTORY)||"[]"); }catch{ return []; } }
+function loadUser(){ try{ return JSON.parse(localStorage.getItem(KEY_USER)||localStorage.getItem(KEY_USER_OLD)||"") || defaultUserStore(); } catch{ return defaultUserStore(); } }
+function saveUser(store){ try{ const s=JSON.stringify(store); localStorage.setItem(KEY_USER, s); localStorage.setItem(KEY_USER_OLD, s); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
+function loadHistory(){ try{ return JSON.parse(localStorage.getItem(KEY_HISTORY)||localStorage.getItem(KEY_HISTORY_OLD)||"[]"); }catch{ return []; } }
 function saveHistory(list){ try{ localStorage.setItem(KEY_HISTORY, JSON.stringify(list.slice(-10))); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
 function canLearn(){ return true; }
 
@@ -539,7 +696,27 @@ function renderConflictsList(conflicts){
 }
 
 function refreshMeta(){
-  const cats=Object.keys(DATA.vocabulario||{}); let totalCore=0; for(const c of cats) totalCore+=Object.keys(DATA.vocabulario[c]).length;
+  const cats = Object.keys(DATA.vocabulario||{});
+  let totalCore = 0;
+  for(const c of cats){ totalCore += Object.keys((DATA.vocabulario||{})[c]||{}).length; }
+  const phCount = Object.values(DATA.phrasebook||{}).reduce((a,g)=>a+Object.keys(g||{}).length,0);
+  const userES = Object.keys((USER&&USER.es2sim)||{}).length;
+  const userSIM = Object.keys((USER&&USER.sim2es)||{}).length;
+  if($meta)    $meta.textContent    = `Categorías: ${cats.length} · Entradas base: ${totalCore} · Phrasebook: ${phCount} · Usuario: ${userES}/${userSIM} (ES/SIM).`;
+  if($metaLex) $metaLex.textContent = `${totalCore} + ${userES}↑`;
+  if($stateLearnVal) $stateLearnVal.textContent = String(lastLearnedCount||0);
+  if($history){
+    const hist = (Array.isArray(HISTORY)?HISTORY:[]).slice(-10);
+    if(!hist.length){ $history.textContent = "--"; }
+    else{
+      $history.innerHTML = hist.map(h=>`• <b>${h.es}</b> ↔ <i>${h.sim}</i> <span class="muted small">(${new Date(h.t||Date.now()).toLocaleString()})</span>`).join("<br>");
+    }
+  }
+  const confs = scanConflicts();
+  if($confCount) $confCount.textContent = String(confs.length);
+  if($confBadge){ $confBadge.classList.toggle("warn", confs.length>0); $confBadge.classList.toggle("ok", confs.length===0); }
+}
+); let totalCore=0; for(const c of cats) totalCore+=Object.keys(DATA.vocabulario[c]).length;
   const phCount = Object.values(DATA.phrasebook||{}).reduce((a,g)=>a+Object.keys(g).length,0);
   const userES=Object.keys(USER.es2sim||{}).length, userSIM=Object.keys(USER.sim2es||{}).length;
 
@@ -579,7 +756,7 @@ $exportBtn.addEventListener("click", ()=>{
   const blob=new Blob([data], {type:"application/json"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
-  a.download=`simlish-backup-v${CORE_VERSION}.json`;
+  a.download=`simuch-backup-v${CORE_VERSION}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 });
@@ -639,7 +816,7 @@ function renderResults(list){
     const esId="es_"+Math.random().toString(36).slice(2), simId="sim_"+Math.random().toString(36).slice(2);
     div.innerHTML=`<div class="row2">
         <input id="${esId}" value="${item.es}" ${isCore?'disabled':''} title="${isCore?'CORE (solo lectura)':'Español'}"/>
-        <input id="${simId}" value="${item.sim}" ${locked?'disabled':''} title="${locked?'Bloqueado':'Simlish'}"/>
+        <input id="${simId}" value="${item.sim}" ${locked?'disabled':''} title="${locked?'Bloqueado':'Simuch'}"/>
         <button class="btn" ${locked?'disabled':''} data-action="save">Guardar</button>
         <button class="btn sec" ${locked?'disabled':''} data-action="del">Eliminar</button>
       </div>
@@ -743,7 +920,7 @@ function updateHostIndicators(){
     $hostChip.classList.toggle("warn", ok===false);
   };
   fetch(BACKEND_URL, { method:"GET", mode:"cors", cache:"no-store" })
-    .then(r => r.ok ? r.json().then(()=>setTag("OK",true)) : setTag("Sin respuesta",false))
+    .then(r => r.ok ? r.json().then(()=>setTag("OK", true); (function(){ var e=document.getElementById("hostState"); if(e) e.classList.add("ok"); })()) : setTag("Sin respuesta",false))
     .catch(()=> setTag("Sin respuesta",false));
 }
 function endpoint(){ return BACKEND_URL; }
@@ -804,6 +981,50 @@ function doTranslate(){
 /* ===================== INIT ===================== */
 function init(){ setDir(DIR.ES2SIM); pullFromHost(); refreshMeta(); }
 init();
+
+// ===== Import / Restore (Admin) =====
+async function parseBackupFile(file){
+  const text = await file.text();
+  let data;
+  try{ data = JSON.parse(text); }catch(e){ alert("Archivo JSON inválido."); throw e; }
+  let user=null, history=[];
+  if(data && typeof data==='object'){
+    if(data.user && (data.user.es2sim || data.user.sim2es)){ user = { es2sim:data.user.es2sim||{}, sim2es:data.user.sim2es||{} }; }
+    else if(data.userDict && (data.userDict.ES2SIM || data.userDict.SIM2ES)){ user = { es2sim:data.userDict.ES2SIM||{}, sim2es:data.userDict.SIM2ES||{} }; }
+    else if(data.es2sim || data.sim2es){ user = { es2sim:data.es2sim||{}, sim2es:data.sim2es||{} }; }
+    else if(data.ES2SIM || data.SIM2ES){ user = { es2sim:data.ES2SIM||{}, sim2es:data.SIM2ES||{} }; }
+    if(Array.isArray(data.history)) history = data.history;
+  }
+  if(!user) throw new Error("Respaldo sin datos de usuario.");
+  return { user, history };
+}
+function importMerge(user, history){
+  USER.es2sim = { ...(USER.es2sim||{}), ...(user.es2sim||{}) };
+  USER.sim2es = { ...(USER.sim2es||{}), ...(user.sim2es||{}) };
+  if(Array.isArray(history) && history.length){
+    HISTORY = [...(HISTORY||[]), ...history].slice(-50);
+  }
+  saveUser(USER); saveHistory(HISTORY);
+  refreshMeta(); alert("Importación fusionada correctamente.");
+}
+function importReplace(user, history){
+  USER = { es2sim: user.es2sim||{}, sim2es: user.sim2es||{} };
+  HISTORY = Array.isArray(history) ? history.slice(-50) : [];
+  saveUser(USER); saveHistory(HISTORY);
+  refreshMeta(); alert("Importación reemplazada correctamente.");
+}
+document.getElementById("btnImportMerge")?.addEventListener("click", async ()=>{
+  const f = document.getElementById("importUserFile")?.files?.[0];
+  if(!f){ alert("Selecciona un archivo .json"); return; }
+  try{ const {user, history} = await parseBackupFile(f); importMerge(user, history); }catch(e){ console.error(e); }
+});
+document.getElementById("btnImportReplace")?.addEventListener("click", async ()=>{
+  const f = document.getElementById("importUserFile")?.files?.[0];
+  if(!f){ alert("Selecciona un archivo .json"); return; }
+  if(!confirm("¿Reemplazar completamente tus datos de usuario por el respaldo?")) return;
+  try{ const {user, history} = await parseBackupFile(f); importReplace(user, history); }catch(e){ console.error(e); }
+});
+
 </script>
 </body>
 </html>
