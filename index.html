@@ -307,18 +307,21 @@ body, .wrap, .section, .footer, .header { color: var(--ink) !important; }
 /* ===================== CONFIG + HELPERS ===================== */
 const CORE_VERSION = "3.1";
 const STRICT_MODE = true;
-const KEY_USER = `simlishLexiconUser:${CORE_VERSION}`;
-const KEY_HISTORY = `simlishLexiconHistory:${CORE_VERSION}`;
+/* Migración: soporta nombres antiguos y nuevos sin perder datos */
+const KEY_USER_OLD = `simlishLexiconUser:${CORE_VERSION}`;
+const KEY_HISTORY_OLD = `simlishLexiconHistory:${CORE_VERSION}`;
+const KEY_USER_NEW = `simuchLexiconUser:${CORE_VERSION}`;
+const KEY_HISTORY_NEW = `simuchLexiconHistory:${CORE_VERSION}`;
 const DIR = { ES2SIM:"ES2SIM", SIM2ES:"SIM2ES" };
 let CURRENT_DIR = DIR.ES2SIM;
 let lastLearnedCount = 0;
 
-/* Backend forzado */
+/* Backend */
 const BACKEND_URL = "https://simlish-translator-backend.onrender.com/";
 let pushTimer = null, pulling = false, lastPushOk = null, dirtySinceLastPush = false;
 
-/* Admin password: se compara contra hash (no exponemos la clave en texto) */
-const PASS_SHA256_HEX = "7f62619786ad59b250343204be7eba3b6adf943139684e185ab7234e8dc7d774"; // hash de tu clave
+/* Admin password: hash */
+const PASS_SHA256_HEX = "7f62619786ad59b250343204be7eba3b6adf943139684e185ab7234e8dc7d774";
 async function verifyPass(pass){
   if(!window.crypto?.subtle) return false;
   const enc = new TextEncoder().encode(pass);
@@ -333,10 +336,38 @@ const normEs = s => deacc(String(s||"").toLowerCase()).trim();
 const normSim = s => String(s||"").toLowerCase().trim();
 
 function defaultUserStore(){ return { es2sim:{}, sim2es:{} }; }
-function loadUser(){ try{ return JSON.parse(localStorage.getItem(KEY_USER)||"") || defaultUserStore(); } catch{ return defaultUserStore(); } }
-function saveUser(store){ try{ localStorage.setItem(KEY_USER, JSON.stringify(store)); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
-function loadHistory(){ try{ return JSON.parse(localStorage.getItem(KEY_HISTORY)||"[]"); }catch{ return []; } }
-function saveHistory(list){ try{ localStorage.setItem(KEY_HISTORY, JSON.stringify(list.slice(-10))); }catch{} dirtySinceLastPush = true; schedulePushToHost(); }
+/* Carga: intenta nuevo → viejo */
+function loadUser(){
+  try{
+    const newer = localStorage.getItem(KEY_USER_NEW);
+    const older = localStorage.getItem(KEY_USER_OLD);
+    return newer ? JSON.parse(newer) : (older ? JSON.parse(older) : defaultUserStore());
+  }catch{ return defaultUserStore(); }
+}
+/* Guarda en ambos nombres para compatibilidad */
+function saveUser(store){
+  try{
+    const s = JSON.stringify(store);
+    localStorage.setItem(KEY_USER_NEW, s);
+    localStorage.setItem(KEY_USER_OLD, s);
+  }catch{}
+  dirtySinceLastPush = true; schedulePushToHost();
+}
+function loadHistory(){
+  try{
+    const newer = localStorage.getItem(KEY_HISTORY_NEW);
+    const older = localStorage.getItem(KEY_HISTORY_OLD);
+    return newer ? JSON.parse(newer) : (older ? JSON.parse(older) : []);
+  }catch{ return []; }
+}
+function saveHistory(list){
+  try{
+    const s = JSON.stringify(list.slice(-10));
+    localStorage.setItem(KEY_HISTORY_NEW, s);
+    localStorage.setItem(KEY_HISTORY_OLD, s);
+  }catch{}
+  dirtySinceLastPush = true; schedulePushToHost();
+}
 function canLearn(){ return true; }
 
 let USER = loadUser();
@@ -469,9 +500,8 @@ function esSynSet(esStr){
   return new Set(raw.split(/[\/,]/).map(s=>normEs(s)).filter(Boolean));
 }
 
-/* Conflictos que entienden sinónimos ("a / b"): no marcan conflicto si el ES del usuario está dentro del set de sinónimos CORE (o viceversa) */
+/* Conflictos con sinónimos */
 function scanConflicts(){
-  // Core: sim -> set de sinónimos
   const coreSyn = new Map();
   for(const entries of Object.values(DATA.vocabulario)){
     for(const [sim, es] of Object.entries(entries)){
@@ -480,23 +510,16 @@ function scanConflicts(){
       coreSyn.set(s, new Set([...(coreSyn.get(s)||[]), ...set]));
     }
   }
-  // Recolectar grupos por SIM (mezclando CORE y USER). Hacemos merge si hay intersección.
   const bySim = new Map();
-  // 1) CORE como grupo base
-  for(const [simNorm, set] of coreSyn.entries()){
-    bySim.set(simNorm, [set]);
-  }
-  // 2) USER.sim2es (sim -> string con posibles "a / b")
+  for(const [simNorm, set] of coreSyn.entries()){ bySim.set(simNorm, [set]); }
   for(const [sim, es] of Object.entries(USER.sim2es||{})){
     const kSim = normSim(sim), set = esSynSet(es);
     if(!bySim.has(kSim)) bySim.set(kSim, []);
-    // merge por intersección
     let groups = bySim.get(kSim);
     let merged = false;
     for(const g of groups){ const inter = [...set].some(x=>g.has(x)); if(inter){ for(const x of set) g.add(x); merged=true; break; } }
     if(!merged) groups.push(set);
   }
-  // 3) USER.es2sim (es -> sim)
   for(const [es, sim] of Object.entries(USER.es2sim||{})){
     const kSim = normSim(sim), set = esSynSet(es);
     if(!bySim.has(kSim)) bySim.set(kSim, []);
@@ -505,14 +528,10 @@ function scanConflicts(){
     for(const g of groups){ const inter = [...set].some(x=>g.has(x)); if(inter){ for(const x of set) g.add(x); merged=true; break; } }
     if(!merged) groups.push(set);
   }
-
-  // Un conflicto existe si para un SIM hay más de 1 grupo disjunto (sin sinónimos cruzados)
   const conflicts = [];
   for(const [sim, groups] of bySim.entries()){
     const compact = groups.filter(g=>g && g.size>0);
-    if(compact.length > 1){
-      conflicts.push({ sim, groups: compact.map(g=>Array.from(g)) });
-    }
+    if(compact.length > 1){ conflicts.push({ sim, groups: compact.map(g=>Array.from(g)) }); }
   }
   return conflicts;
 }
@@ -569,7 +588,7 @@ function translateES2SIM(text){
     const tense=detectTense(s); const toks=tokensOf(s); const simToks=[]; let injected=false;
     for(const t of toks){
       if(/^[.,;:!?]$/.test(t)){ simToks.push(t); continue; }
-      const key=normEs(t); let sim=USER.es2sim[key] || CORE_ES2SIM.get(key);
+      const key=normEs(t); let sim=USER.es2sim[key] || CORE_ES2SIM.get(key); // Core > Usuario
       if(!sim){ sim=synth(t); newPairs.push([key, sim]); } else { sim=ensureUniqueSim(sim, t); }
       const isVerb=["brazu","nomma","gluppa","delvu","klasha","mashka","travnu","gavna","dropra","workru","zurnu","showru"].includes(normSim(sim));
       if(!injected && isVerb){
@@ -607,7 +626,7 @@ function translateSIM2ES(text){
       const t = expandMultiSimToken(t0);           // "su_laa" -> "su laa"
       const key = normSim(t);
 
-      let es = USER.sim2es[key] || CORE_SIM2ES.get(key);
+      let es = USER.sim2es[key] || CORE_SIM2ES.get(key); // Core > Usuario
       if(!es){
         // intenta sin prefijos/sufijos de tiempo ("dra-/to-", "-nu/-ru")
         const base = key.replace(/^(dra-|to-)/,"").replace(/(-nu|-ru)$/,"");
@@ -658,11 +677,9 @@ function renderConflictsList(conflicts){
   }).join("");
   $confList.innerHTML = items;
 
-  // Bind botones
   $confList.querySelectorAll("[data-open]").forEach(b=>{
     b.addEventListener("click", ()=>{
       const sim = b.getAttribute("data-open");
-      // abrir panel, poner modo SIM, buscar ese sim
       unlockPanelIfNeeded().then(ok=>{
         if(!ok) return;
         const modeSim = document.querySelector('input[name="mode"][value="SIM"]');
@@ -701,23 +718,31 @@ function refreshMeta(){
   const confs=scanConflicts();
   if($confCount) $confCount.textContent=String(confs.length);
   if($confBadge){ $confBadge.classList.toggle("warn", confs.length>0); $confBadge.classList.toggle("ok", confs.length===0); }
-  // si está abierta la lista, re-pintar
   if($confList && $confList.style.display!=="none"){ renderConflictsList(confs); }
-
   if($strictBanner){ $strictBanner.style.display="none"; }
-
   updateHostIndicators();
 }
 
 /* ===================== BOTONES BÁSICOS ===================== */
-$btn.addEventListener("click", doTranslate);
+$btn.addEventListener("click", async ()=>{
+  doTranslate();
+  try{
+    await pushToHost();
+    await new Promise(r=>setTimeout(r,400));
+    await pullFromHost();
+  }catch(_){}
+});
 $clear.addEventListener("click", ()=>{ $in.value=""; $out.textContent="--"; lastLearnedCount=0; refreshMeta(); });
 $copy.addEventListener("click", async ()=>{ const txt=$out.textContent.trim(); if(!txt||txt==="--"){ alert("No hay texto para copiar."); return; } try{ await navigator.clipboard.writeText(txt); $copy.textContent="¡Copiado!"; setTimeout(()=>{$copy.textContent="Copiar";},900); }
 catch{ const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); $copy.textContent="¡Copiado!"; } finally{ document.body.removeChild(ta); setTimeout(()=>{$copy.textContent="Copiar";},900); } } });
 $demo.addEventListener("click", ()=>{ if(CURRENT_DIR===DIR.ES2SIM){ $in.value="Ayer cociné sopa caliente, hoy la estoy sirviendo y mañana la voy a compartir."; } else { $in.value="Sul sul! Su laa! Dag dag! Da vaa."; } doTranslate(); });
 $exportBtn.addEventListener("click", ()=>{
-  // Un único respaldo con user + history
-  const payload = { core_version: CORE_VERSION, exported_at: new Date().toISOString(), user: USER, history: HISTORY };
+  const payload = {
+    core_version: CORE_VERSION,
+    exported_at: new Date().toISOString(),
+    userDict: { ES2SIM: USER?.es2sim||{}, SIM2ES: USER?.sim2es||{} },
+    history: HISTORY
+  };
   const data = JSON.stringify(payload, null, 2);
   const blob=new Blob([data], {type:"application/json"});
   const a=document.createElement("a");
@@ -787,7 +812,6 @@ function renderResults(list){
         <button class="btn sec" ${locked?'disabled':''} data-action="del">Eliminar</button>
       </div>
       <small>${isCore? 'CORE · No editable. Puedes crear una sobreescritura en Usuario si quieres cambiarlo.' : 'Usuario · Editable'}</small>`;
-    // Guardar
     div.querySelector('[data-action="save"]')?.addEventListener('click', ()=>{
       const esVal=document.getElementById(esId).value.trim(); let simVal=document.getElementById(simId).value.trim();
       if(!esVal){ alert("Falta Español."); return; } if(!simVal){ simVal=synth(esVal); }
@@ -799,7 +823,6 @@ function renderResults(list){
       HISTORY=[...HISTORY,{es:esVal,sim:simVal,t:new Date().toISOString()}].slice(-10);
       saveUser(USER); saveHistory(HISTORY); renderResults([{scope:"USER", es:esVal, sim:simVal}]); refreshMeta();
     });
-    // Eliminar
     div.querySelector('[data-action="del"]')?.addEventListener('click', ()=>{
       const esVal=document.getElementById(esId).value.trim(); const simVal=document.getElementById(simId).value.trim();
       if(!esVal || !simVal) return;
@@ -820,7 +843,7 @@ document.getElementById("btnSearch")?.addEventListener("click", ()=>{
 });
 document.getElementById("btnGen")?.addEventListener("click", ()=>{
   const es= (document.getElementById("newEs")?.value||"").trim(); if(!es){ alert("Escribe Español."); return; }
-  document.getElementById("newSim").value = ensureUniqueSim(synth(es), es); // propuesta previa
+  document.getElementById("newSim").value = ensureUniqueSim(synth(es), es);
 });
 document.getElementById("btnCreate")?.addEventListener("click", ()=>{
   const $newEs=document.getElementById("newEs"); const $newSim=document.getElementById("newSim");
@@ -837,42 +860,27 @@ document.getElementById("btnCreate")?.addEventListener("click", ()=>{
   $newEs.value=""; $newSim.value="";
   renderResults([{scope:"USER", es, sim}]); refreshMeta();
 });
-
 document.getElementById("btnRescan")?.addEventListener("click", ()=>{
   refreshMeta();
   if($confList && $confList.style.display!=="none"){ renderConflictsList(scanConflicts()); }
 });
 
-/* Resolver conflicto por “sinónimos”: une todos los ES para ese SIM en un solo set y lo guarda en USER.sim2es[sim] y USER.es2sim[es]=sim */
+/* Fusionar conflicto por sinónimos */
 function resolveConflictBySynonyms(sim){
   const kSim = normSim(sim);
   const confs = scanConflicts().filter(c=>normSim(c.sim)===kSim);
   if(!confs.length){ alert("No hay conflicto para ese SIM."); return; }
   const all = new Set();
-  // Core
   const coreStr = CORE_SIM2ES.get(kSim);
   if(coreStr){ for(const x of esSynSet(coreStr)) all.add(x); }
-  // User sim2es
   const userStr = USER.sim2es[kSim];
   if(userStr){ for(const x of esSynSet(userStr)) all.add(x); }
-  // User es2sim invertido
   for(const [es, s] of Object.entries(USER.es2sim||{})){ if(normSim(s)===kSim){ all.add(normEs(es)); } }
-
   if(all.size===0){ alert("Nada que fusionar."); return; }
-
-  // Construir string "a / b / c" en forma bonita (con acentos originales si existen en alguna fuente)
-  // Para simplicidad usamos las claves normales; el usuario puede editar luego si quiere diacríticos exactos.
   const synList = Array.from(all);
   const joined = synList.join(" / ");
-
-  // Actualizar sim2es
   USER.sim2es[kSim] = joined;
-
-  // Asegurar es2sim para cada variante
-  for(const es of synList){
-    USER.es2sim[es] = sim;
-  }
-
+  for(const es of synList){ USER.es2sim[es] = sim; }
   saveUser(USER); refreshMeta();
   if($confList && $confList.style.display!=="none"){ renderConflictsList(scanConflicts()); }
   alert(`Fusionado como sinónimos para "${sim}": ${joined}`);
@@ -889,12 +897,25 @@ function updateHostIndicators(){
     .then(r => r.ok ? r.json().then(()=>setTag("OK",true)) : setTag("Sin respuesta",false))
     .catch(()=> setTag("Sin respuesta",false));
 }
-function endpoint(){ return BACKEND_URL; }
-function schedulePushToHost(){ clearTimeout(pushTimer); pushTimer=setTimeout(pushToHost, 600); }
+/* Endpoint correcto para estado */
+function endpoint(){ return BACKEND_URL + "api/state"; }
+/* Coalescing suave para cambios fuera del botón Traducir/Importar */
+function schedulePushToHost(){ clearTimeout(pushTimer); pushTimer=setTimeout(pushToHost, 4000); }
 async function pushToHost(){
   try{
-    const payload={ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY };
-    const r=await fetch(endpoint(),{ method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload), mode:"cors", credentials:"omit" });
+    const payload = {
+      core_version: CORE_VERSION,
+      t: new Date().toISOString(),
+      userDict: { ES2SIM: (USER&&USER.es2sim)||{}, SIM2ES: (USER&&USER.sim2es)||{} },
+      history: Array.isArray(HISTORY)?HISTORY:[]
+    };
+    const r = await fetch(endpoint(),{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify(payload),
+      mode:"cors",
+      credentials:"omit"
+    });
     if(!r.ok) throw new Error(r.status);
     lastPushOk=true; dirtySinceLastPush=false;
   }catch(e){ lastPushOk=false; }
@@ -906,10 +927,15 @@ async function pullFromHost(){
     const r=await fetch(endpoint(),{method:"GET",mode:"cors",credentials:"omit"});
     if(!r.ok) throw new Error(r.status);
     const data=await r.json();
-    if(data && data.user){
+    /* Acepta ambos formatos: {userDict:{...}} o legado {user:{...}} */
+    const srvUser = data?.userDict
+      ? { es2sim: data.userDict.ES2SIM||{}, sim2es: data.userDict.SIM2ES||{} }
+      : (data?.user ? { es2sim: data.user.es2sim||{}, sim2es: data.user.sim2es||{} } : null);
+
+    if(srvUser){
       USER=USER||defaultUserStore();
-      USER.es2sim=Object.assign({}, USER.es2sim||{}, data.user.es2sim||{});
-      USER.sim2es=Object.assign({}, USER.sim2es||{}, data.user.sim2es||{});
+      USER.es2sim=Object.assign({}, USER.es2sim||{}, srvUser.es2sim||{});
+      USER.sim2es=Object.assign({}, USER.sim2es||{}, srvUser.sim2es||{});
       saveUser(USER);
       if(Array.isArray(data.history)){ HISTORY=data.history.slice(-10); saveHistory(HISTORY); }
       lastPushOk=true; dirtySinceLastPush=false;
@@ -918,8 +944,17 @@ async function pullFromHost(){
   finally{ pulling=false; updateHostIndicators(); refreshMeta(); }
 }
 function flushViaBeacon(){ if(!dirtySinceLastPush) return;
-  try{ const payload=JSON.stringify({ core_version: CORE_VERSION, t:new Date().toISOString(), user:USER, history:HISTORY, flush:true });
-    const blob=new Blob([payload],{type:"application/json"}); navigator.sendBeacon(endpoint(), blob); lastPushOk=true; dirtySinceLastPush=false;
+  try{
+    const payload=JSON.stringify({
+      core_version: CORE_VERSION,
+      t:new Date().toISOString(),
+      userDict:{ ES2SIM:(USER&&USER.es2sim)||{}, SIM2ES:(USER&&USER.sim2es)||{} },
+      history:Array.isArray(HISTORY)?HISTORY:[],
+      flush:true
+    });
+    const blob=new Blob([payload],{type:"application/json"});
+    navigator.sendBeacon(endpoint(), blob);
+    lastPushOk=true; dirtySinceLastPush=false;
   }catch(_){}
 }
 window.addEventListener("pagehide", flushViaBeacon);
@@ -948,7 +983,7 @@ function doTranslate(){
 function init(){ setDir(DIR.ES2SIM); pullFromHost(); refreshMeta(); updateVisits(); }
 init();
 
-// ===== Import / Restore (Admin) =====
+/* ===== Import / Restore (Admin) ===== */
 async function parseBackupFile(file){
   const text = await file.text();
   let data;
@@ -964,7 +999,7 @@ async function parseBackupFile(file){
   if(!user) throw new Error("Respaldo sin datos de usuario.");
   return { user, history };
 }
-function importMerge(user, history){
+async function importMerge(user, history){
   USER.es2sim = { ...(USER.es2sim||{}), ...(user.es2sim||{}) };
   USER.sim2es = { ...(USER.sim2es||{}), ...(user.sim2es||{}) };
   if(Array.isArray(history) && history.length){
@@ -972,25 +1007,26 @@ function importMerge(user, history){
   }
   saveUser(USER); saveHistory(HISTORY);
   refreshMeta(); alert("Importación fusionada correctamente.");
+  try{ await pushToHost(); await new Promise(r=>setTimeout(r,400)); await pullFromHost(); }catch(_){}
 }
-function importReplace(user, history){
+async function importReplace(user, history){
   USER = { es2sim: user.es2sim||{}, sim2es: user.sim2es||{} };
   HISTORY = Array.isArray(history) ? history.slice(-50) : [];
   saveUser(USER); saveHistory(HISTORY);
   refreshMeta(); alert("Importación reemplazada correctamente.");
+  try{ await pushToHost(); await new Promise(r=>setTimeout(r,400)); await pullFromHost(); }catch(_){}
 }
 document.getElementById("btnImportMerge")?.addEventListener("click", async ()=>{
   const f = document.getElementById("importUserFile")?.files?.[0];
   if(!f){ alert("Selecciona un archivo .json"); return; }
-  try{ const {user, history} = await parseBackupFile(f); importMerge(user, history); }catch(e){ console.error(e); alert("No se pudo importar."); }
+  try{ const {user, history} = await parseBackupFile(f); await importMerge(user, history); }catch(e){ console.error(e); alert("No se pudo importar."); }
 });
 document.getElementById("btnImportReplace")?.addEventListener("click", async ()=>{
   const f = document.getElementById("importUserFile")?.files?.[0];
   if(!f){ alert("Selecciona un archivo .json"); return; }
   if(!confirm("¿Reemplazar completamente tus datos de usuario por el respaldo?")) return;
-  try{ const {user, history} = await parseBackupFile(f); importReplace(user, history); }catch(e){ console.error(e); alert("No se pudo importar."); }
+  try{ const {user, history} = await parseBackupFile(f); await importReplace(user, history); }catch(e){ console.error(e); alert("No se pudo importar."); }
 });
-
 
 /* ===================== VISITS COUNTER ===================== */
 const $visitCount = document.getElementById("visitCount");
@@ -1003,7 +1039,6 @@ async function updateVisits(){
       $visitCount.textContent = String(data.visits);
     }
   }catch(e){
-    // keep silent if backend doesn't expose /visit
     if($visitCount) $visitCount.textContent = "—";
   }
 }
