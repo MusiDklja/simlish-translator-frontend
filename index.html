@@ -588,7 +588,7 @@ function translateES2SIM(text){
     const tense=detectTense(s); const toks=tokensOf(s); const simToks=[]; let injected=false;
     for(const t of toks){
       if(/^[.,;:!?]$/.test(t)){ simToks.push(t); continue; }
-      const key=normEs(t); let sim=USER.es2sim[key] || CORE_ES2SIM.get(key); // Core > Usuario
+      const key=normEs(t); let sim = CORE_ES2SIM.get(key) ?? USER.es2sim[key]; // Core > Usuario
       if(!sim){ sim=synth(t); newPairs.push([key, sim]); } else { sim=ensureUniqueSim(sim, t); }
       const isVerb=["brazu","nomma","gluppa","delvu","klasha","mashka","travnu","gavna","dropra","workru","zurnu","showru"].includes(normSim(sim));
       if(!injected && isVerb){
@@ -626,11 +626,11 @@ function translateSIM2ES(text){
       const t = expandMultiSimToken(t0);           // "su_laa" -> "su laa"
       const key = normSim(t);
 
-      let es = USER.sim2es[key] || CORE_SIM2ES.get(key); // Core > Usuario
+      let es = CORE_SIM2ES.get(key) ?? USER.sim2es[key]; // Core > Usuario
       if(!es){
         // intenta sin prefijos/sufijos de tiempo ("dra-/to-", "-nu/-ru")
         const base = key.replace(/^(dra-|to-)/,"").replace(/(-nu|-ru)$/,"");
-        es = USER.sim2es[base] || CORE_SIM2ES.get(base);
+        es = CORE_SIM2ES.get(base) ?? USER.sim2es[base];
       }
       if(!es){ es = t; }
       esToks.push(es);
@@ -1044,4 +1044,4 @@ async function updateVisits(){
 }
 </script>
 </body>
-</html>
+  </html>
